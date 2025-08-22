@@ -54,5 +54,5 @@ jobs:
     - name: Verify static binary
       run: |
         echo "Checking if the binary is statically linked..."
-        file ./result/bin/gitsmith
-        ldd ./result/bin/gitsmith 2>&1 | grep -q "not a dynamic executable" || (echo "Binary is not static!" && exit 1)
+        file ./result/bin/gitsmith | grep -E "(statically linked|static-pie linked)" || (echo "Binary is not static!" && exit 1)
+        echo "✓ Binary is properly static linked"
