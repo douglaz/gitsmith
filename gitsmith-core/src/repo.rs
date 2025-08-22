@@ -130,19 +130,17 @@ pub fn get_git_state(repo_path: &Path, identifier: &str) -> Result<GitState> {
     // Get all references
     for reference in repo.references()? {
         let reference = reference?;
-        if let Some(name) = reference.name() {
-            if let Some(target) = reference.target() {
+        if let Some(name) = reference.name()
+            && let Some(target) = reference.target() {
                 refs.insert(name.to_string(), target.to_string());
             }
-        }
     }
 
     // Get HEAD
-    if let Ok(head) = repo.head() {
-        if let Some(target) = head.target() {
+    if let Ok(head) = repo.head()
+        && let Some(target) = head.target() {
             refs.insert("HEAD".to_string(), target.to_string());
         }
-    }
 
     Ok(GitState {
         identifier: identifier.to_string(),
