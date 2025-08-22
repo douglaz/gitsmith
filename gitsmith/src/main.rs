@@ -211,10 +211,12 @@ async fn main() -> Result<()> {
                 .context("Failed to announce repository")?;
 
             // Update git config if requested
-            if update_config && repo_path.exists()
-                && let Err(e) = update_git_config(&repo_path, &result.nostr_url) {
-                    eprintln!("Warning: Failed to update git config: {}", e);
-                }
+            if update_config
+                && repo_path.exists()
+                && let Err(e) = update_git_config(&repo_path, &result.nostr_url)
+            {
+                eprintln!("Warning: Failed to update git config: {}", e);
+            }
 
             // Output result
             match output {
