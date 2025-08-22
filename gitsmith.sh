@@ -26,45 +26,53 @@ detect_platform() {
                 *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
             esac
             ;;
+        darwin)
+            case "$arch" in
+                x86_64) echo "macos-x86_64" ;;
+                arm64) echo "macos-aarch64" ;;
+                *) echo "Unsupported architecture: $arch" >&2; exit 1 ;;
+            esac
+            ;;
+        mingw*|cygwin*|msys*)
+            echo "windows-x86_64"
+            ;;
         *) echo "Unsupported OS: $os" >&2; exit 1 ;;
     esac
 }
 
 # Get latest release version from GitHub
 get_latest_version() {
-    # Get the latest release
-    local releases=$(curl -s "https://api.github.com/repos/$REPO/releases" 2>/dev/null)
+    # For gitsmith, we use a fixed "latest-master" tag for continuous deployment
+    # Check if the release exists
+    local release_info=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/latest-master" 2>/dev/null)
     
-    # Check if jq is available for proper JSON parsing
-    if command -v jq >/dev/null 2>&1; then
-        # Check if the response is an array (successful) or an object (error/rate limit)
-        local is_array=$(echo "$releases" | jq -r 'if type == "array" then "yes" else "no" end' 2>/dev/null)
-        if [[ "$is_array" == "yes" ]]; then
-            local latest_version=$(echo "$releases" | jq -r '.[0].tag_name // empty' 2>/dev/null)
-            if [[ -n "$latest_version" ]]; then
-                echo "$latest_version"
-                return
-            fi
-        fi
+    # Check if we got a valid response (should have an "id" field if the release exists)
+    if echo "$release_info" | grep -q '"id"'; then
+        echo "latest-master"
     else
-        # Fallback to grep-based parsing (less reliable but works without jq)
-        local tag_name=$(echo "$releases" | grep -m1 '"tag_name":' | sed 's/.*"tag_name": *"\([^"]*\)".*/\1/')
-        if [[ -n "$tag_name" ]]; then
-            echo "$tag_name"
-            return
-        fi
+        # No release found
+        echo ""
     fi
-    
-    # No releases found
-    echo ""
 }
 
-# Get currently installed version
+# Get currently installed version (stores commit SHA for latest-master)
 get_installed_version() {
     if [[ -f "$INSTALLED_VERSION_FILE" ]]; then
         cat "$INSTALLED_VERSION_FILE"
     else
         echo "none"
+    fi
+}
+
+# Get the commit SHA for the latest-master release
+get_latest_commit() {
+    local release_info=$(curl -s "https://api.github.com/repos/$REPO/releases/tags/latest-master" 2>/dev/null)
+    
+    # Extract the target_commitish (commit SHA) from the release
+    if command -v jq >/dev/null 2>&1; then
+        echo "$release_info" | jq -r '.target_commitish // empty' 2>/dev/null
+    else
+        echo "$release_info" | grep -o '"target_commitish":"[^"]*"' | cut -d'"' -f4
     fi
 }
 
@@ -78,8 +86,15 @@ install_binary() {
     # Create install directory if it doesn't exist
     mkdir -p "$INSTALL_DIR"
     
-    # Construct download URL
-    local url="https://github.com/${REPO}/releases/download/${version}/${BINARY_NAME}-${platform}.tar.gz"
+    # Determine archive type and construct URL
+    local archive_ext="tar.gz"
+    local binary_name="${BINARY_NAME}"
+    if [[ "$platform" == windows-* ]]; then
+        archive_ext="zip"
+        binary_name="${BINARY_NAME}.exe"
+    fi
+    
+    local url="https://github.com/${REPO}/releases/download/${version}/${BINARY_NAME}-${platform}.${archive_ext}"
     
     # Download to temporary file
     local temp_file=$(mktemp)
@@ -91,11 +106,23 @@ install_binary() {
     
     # Extract the archive
     local temp_dir=$(mktemp -d)
-    tar -xzf "$temp_file" -C "$temp_dir"
+    if [[ "$archive_ext" == "zip" ]]; then
+        # Use unzip for Windows archives
+        if command -v unzip >/dev/null 2>&1; then
+            unzip -q "$temp_file" -d "$temp_dir"
+        else
+            echo "Error: unzip is required for Windows binaries" >&2
+            rm -f "$temp_file"
+            rm -rf "$temp_dir"
+            exit 1
+        fi
+    else
+        tar -xzf "$temp_file" -C "$temp_dir"
+    fi
     rm -f "$temp_file"
     
-    # Find and move the binary
-    local binary_path="${temp_dir}/${BINARY_NAME}-${platform}"
+    # Find and move the binary (archive contains platform dir with binary inside)
+    local binary_path="${temp_dir}/${platform}/${binary_name}"
     
     if [[ ! -f "$binary_path" ]]; then
         echo "Error: Binary not found in archive" >&2
@@ -108,8 +135,7 @@ install_binary() {
     mv "$binary_path" "${INSTALL_DIR}/${BINARY_NAME}"
     rm -rf "$temp_dir"
     
-    # Record installed version
-    echo "$version" > "$INSTALLED_VERSION_FILE"
+    # Note: version recording is now done in main() after checking commit SHA
     
     echo "${BINARY_NAME} ${version} installed successfully" >&2
 }
@@ -165,11 +191,15 @@ main() {
         local latest_version=$(get_latest_version)
         
         if [[ -n "$latest_version" ]]; then
+            local latest_commit=$(get_latest_commit)
             local installed_version=$(get_installed_version)
             
-            if [[ "$latest_version" != "$installed_version" ]]; then
-                echo "New version available: ${latest_version} (installed: ${installed_version})" >&2
+            # Compare commit SHA to see if update is needed
+            if [[ -n "$latest_commit" && "$latest_commit" != "$installed_version" ]]; then
+                echo "New version available (commit: ${latest_commit:0:7})" >&2
                 install_binary "$latest_version" "$platform"
+                # Store the commit SHA as the installed version
+                echo "$latest_commit" > "$INSTALLED_VERSION_FILE"
             fi
         fi
     fi
@@ -184,6 +214,12 @@ main() {
     if [[ -n "$latest_version" ]]; then
         echo "Installing ${BINARY_NAME} ${latest_version}..." >&2
         install_binary "$latest_version" "$platform"
+        
+        # Store the commit SHA as installed version
+        local latest_commit=$(get_latest_commit)
+        if [[ -n "$latest_commit" ]]; then
+            echo "$latest_commit" > "$INSTALLED_VERSION_FILE"
+        fi
         
         # After successful install, run the binary
         if [[ -f "${INSTALL_DIR}/${BINARY_NAME}" ]]; then
