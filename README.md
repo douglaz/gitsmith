@@ -8,10 +8,10 @@
 
 ```bash
 # Download and run GitSmith directly
-curl -sSL https://raw.githubusercontent.com/douglaz/gitsmith/main/gitsmith.sh | bash -s -- --help
+curl -sSL https://raw.githubusercontent.com/douglaz/gitsmith/master/gitsmith.sh | bash -s -- --help
 
 # Or download the script for repeated use
-curl -sSL https://raw.githubusercontent.com/douglaz/gitsmith/main/gitsmith.sh -o gitsmith.sh
+curl -sSL https://raw.githubusercontent.com/douglaz/gitsmith/master/gitsmith.sh -o gitsmith.sh
 chmod +x gitsmith.sh
 ./gitsmith.sh --help
 ```
