@@ -1,0 +1,19 @@
+[package]
+name = "gitsmith"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "gitsmith"
+path = "src/main.rs"
+
+[dependencies]
+gitsmith-core = { path = "../gitsmith-core" }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+
+# CLI
+clap = { version = "4.5.41", features = ["derive", "env"] }

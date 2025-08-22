@@ -1,0 +1,19 @@
+[workspace]
+resolver = "2"
+members = [
+    "gitsmith-core",
+    "gitsmith",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+authors = ["GitSmith Contributors"]
+license = "MIT"
+repository = "https://github.com/douglaz/gitsmith"
+
+[workspace.dependencies]
+anyhow = "1.0.98"
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = "1.0.140"
+tokio = { version = "1.46.1", features = ["full"] }

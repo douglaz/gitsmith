@@ -1,0 +1,58 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v5
+    
+    - name: Install Nix
+      uses: cachix/install-nix-action@v31
+      with:
+        nix_path: nixpkgs=channel:nixos-unstable
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+    
+    # Only cache cargo registry (dependencies), not target directory
+    # Target caching conflicts with nix environment and multiple build targets
+    - name: Cache Cargo registry
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+        key: cargo-registry-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          cargo-registry-${{ runner.os }}-
+    
+    - name: Check formatting
+      run: nix develop -c cargo fmt --check
+    
+    - name: Run linting
+      run: nix develop -c cargo clippy --all-targets -- -D warnings
+    
+    - name: Build
+      run: nix develop -c cargo build
+    
+    - name: Run tests
+      run: nix develop -c cargo test
+    
+    - name: Build with nix (static musl binary)
+      run: nix build
+    
+    - name: Verify static binary
+      run: |
+        echo "Checking if the binary is statically linked..."
+        file ./result/bin/gitsmith
+        ldd ./result/bin/gitsmith 2>&1 | grep -q "not a dynamic executable" || (echo "Binary is not static!" && exit 1)
