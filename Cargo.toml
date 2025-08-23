@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "gitsmith-core",
     "gitsmith",
+    "gitsmith-integration-tests",
 ]
 
 [workspace.package]
