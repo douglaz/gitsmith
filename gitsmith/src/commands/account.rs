@@ -26,7 +26,7 @@ pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
             print!("Enter password to encrypt key: ");
             io::stdout().flush()?;
             let password = read_password()?;
-            
+
             account::login(&nsec, &password)?;
             Ok(())
         }
@@ -38,7 +38,7 @@ pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
             print!("Enter password to decrypt key: ");
             io::stdout().flush()?;
             let password = read_password()?;
-            
+
             let nsec = account::export_keys(&password)?;
             println!("Private key: {}", nsec);
             Ok(())

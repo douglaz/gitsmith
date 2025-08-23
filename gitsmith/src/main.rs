@@ -25,16 +25,16 @@ enum Commands {
         #[command(subcommand)]
         command: commands::account::AccountCommands,
     },
-    
+
     /// Send a pull request
     Send(commands::send::SendArgs),
-    
+
     /// List pull requests
     List(commands::list::ListArgs),
-    
+
     /// Sync repository state
     Sync(commands::sync::SyncArgs),
-    
+
     /// Initialize and announce a repository on Nostr
     Init {
         /// Repository identifier (unique, no spaces)
@@ -76,7 +76,7 @@ enum Commands {
         /// Additional maintainer npubs
         #[arg(long = "other-maintainers", alias = "maintainer")]
         maintainers: Vec<String>,
-        
+
         /// Blossom servers for large file storage
         #[arg(long = "blossoms", value_delimiter = ',')]
         blossom_servers: Vec<String>,
@@ -141,22 +141,14 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Account { command } => {
-            commands::account::handle_account_command(command).await
-        }
-        
-        Commands::Send(args) => {
-            commands::send::handle_send_command(args).await
-        }
-        
-        Commands::List(args) => {
-            commands::list::handle_list_command(args).await
-        }
-        
-        Commands::Sync(args) => {
-            commands::sync::handle_sync_command(args).await
-        }
-        
+        Commands::Account { command } => commands::account::handle_account_command(command).await,
+
+        Commands::Send(args) => commands::send::handle_send_command(args).await,
+
+        Commands::List(args) => commands::list::handle_list_command(args).await,
+
+        Commands::Sync(args) => commands::sync::handle_sync_command(args).await,
+
         Commands::Init {
             identifier,
             name,
@@ -288,7 +280,7 @@ async fn main() -> Result<()> {
                     println!("{}", result.nostr_url);
                 }
             }
-            
+
             Ok(())
         }
 
@@ -316,7 +308,7 @@ async fn main() -> Result<()> {
             } else {
                 println!("{}", json);
             }
-            
+
             Ok(())
         }
 
@@ -349,7 +341,7 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-            
+
             Ok(())
         }
     }

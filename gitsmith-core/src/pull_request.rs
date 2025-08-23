@@ -26,37 +26,37 @@ pub async fn list_pull_requests(
     relays: Vec<String>,
 ) -> Result<Vec<PullRequest>> {
     let client = Client::default();
-    
+
     // Add relays
     for relay_url in &relays {
         client.add_relay(relay_url).await?;
     }
-    
+
     // Connect to relays
     client.connect().await;
-    
+
     // Wait a bit for connections
     tokio::time::sleep(Duration::from_secs(2)).await;
-    
+
     // Create filter for PR events
     let mut filter = Filter::new();
     filter = filter.kinds(vec![KIND_PULL_REQUEST, KIND_PULL_REQUEST_UPDATE]);
     // Add custom tag for repository coordinate
     filter = filter.custom_tag(
         nostr::SingleLetterTag::lowercase(nostr::Alphabet::A),
-        repo_coordinate
+        repo_coordinate,
     );
-    
+
     // Subscribe to events
     client.subscribe(filter, None).await?;
-    
+
     // Collect events for a few seconds
     let mut events = Vec::new();
     let timeout = tokio::time::sleep(Duration::from_secs(5));
     tokio::pin!(timeout);
-    
+
     let mut notifications = client.notifications();
-    
+
     loop {
         tokio::select! {
             _ = &mut timeout => break,
@@ -71,16 +71,16 @@ pub async fn list_pull_requests(
             }
         }
     }
-    
+
     // Process events into pull requests
     let mut prs: HashMap<EventId, PullRequest> = HashMap::new();
-    
+
     for event in events {
         let pr = event_to_pull_request(&event)?;
-        
+
         // Check if this is an update to existing PR
         let is_update = event.kind == KIND_PULL_REQUEST_UPDATE;
-        
+
         if is_update {
             // Find the original PR this updates
             if let Some(original_id) = find_reply_to(&event) {
@@ -98,36 +98,37 @@ pub async fn list_pull_requests(
             prs.insert(event.id, pr);
         }
     }
-    
+
     // Convert to vector and sort by creation time
     let mut result: Vec<PullRequest> = prs.into_values().collect();
     result.sort_by_key(|pr| std::cmp::Reverse(pr.created_at));
-    
+
     Ok(result)
 }
 
 /// Convert an event to a PullRequest
 fn event_to_pull_request(event: &Event) -> Result<PullRequest> {
-    let title = get_tag_value(event, "subject")
-        .unwrap_or_else(|| "Untitled PR".to_string());
-    
+    let title = get_tag_value(event, "subject").unwrap_or_else(|| "Untitled PR".to_string());
+
     let root_commit = get_tag_value(event, "c");
-    
+
     // Count patch references
-    let patches_count = event.tags.iter()
+    let patches_count = event
+        .tags
+        .iter()
         .filter(|tag| {
-            tag.as_slice().len() > 1 && 
-            tag.as_slice()[0] == "e" &&
-            tag.as_slice().get(2).map_or(false, |s| s == "patch")
+            tag.as_slice().len() > 1
+                && tag.as_slice()[0] == "e"
+                && tag.as_slice().get(2).map_or(false, |s| s == "patch")
         })
         .count();
-    
+
     let status = if event.kind == KIND_PULL_REQUEST_UPDATE {
         "updated".to_string()
     } else {
         "open".to_string()
     };
-    
+
     Ok(PullRequest {
         id: event.id.to_string(),
         title,
@@ -143,21 +144,23 @@ fn event_to_pull_request(event: &Event) -> Result<PullRequest> {
 
 /// Get a tag value from an event
 fn get_tag_value(event: &Event, tag_name: &str) -> Option<String> {
-    event.tags.iter()
-        .find(|tag| {
-            tag.as_slice().len() > 1 && tag.as_slice()[0] == tag_name
-        })
+    event
+        .tags
+        .iter()
+        .find(|tag| tag.as_slice().len() > 1 && tag.as_slice()[0] == tag_name)
         .and_then(|tag| tag.as_slice().get(1))
         .map(|s| s.to_string())
 }
 
 /// Find the event ID this event is replying to
 fn find_reply_to(event: &Event) -> Option<EventId> {
-    event.tags.iter()
+    event
+        .tags
+        .iter()
         .find(|tag| {
-            tag.as_slice().len() > 1 && 
-            tag.as_slice()[0] == "e" &&
-            tag.as_slice().get(3).map_or(false, |s| s == "reply")
+            tag.as_slice().len() > 1
+                && tag.as_slice()[0] == "e"
+                && tag.as_slice().get(3).map_or(false, |s| s == "reply")
         })
         .and_then(|tag| tag.as_slice().get(1))
         .and_then(|s| s.parse().ok())
@@ -166,19 +169,19 @@ fn find_reply_to(event: &Event) -> Option<EventId> {
 /// Format a pull request for display
 pub fn format_pull_request(pr: &PullRequest) -> String {
     let mut output = String::new();
-    
+
     output.push_str(&format!("Title: {}\n", pr.title));
     output.push_str(&format!("Author: {}...\n", &pr.author[0..16]));
     output.push_str(&format!("Status: {}\n", pr.status));
     output.push_str(&format!("Patches: {}\n", pr.patches_count));
-    
+
     if let Some(commit) = &pr.root_commit {
         output.push_str(&format!("Root: {}...\n", &commit[0..8.min(commit.len())]));
     }
-    
+
     if !pr.description.is_empty() {
         output.push_str(&format!("\n{}\n", pr.description));
     }
-    
+
     output
 }

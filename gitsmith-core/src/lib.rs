@@ -1,9 +1,9 @@
-pub mod events;
-pub mod repo;
-pub mod types;
 pub mod account;
+pub mod events;
 pub mod patches;
 pub mod pull_request;
+pub mod repo;
+pub mod types;
 
 // Re-export main types and functions for convenience
 pub use events::{
