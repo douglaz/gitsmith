@@ -28,11 +28,11 @@ pub fn generate_patches(
             // Handle HEAD~N notation
             let parts: Vec<&str> = since.split('~').collect();
             if parts.len() != 2 || parts[0] != "HEAD" {
-                bail!("Invalid commit reference: {}", since);
+                bail!("Invalid commit reference: {since}");
             }
             let n: usize = parts[1]
                 .parse()
-                .with_context(|| format!("Invalid number in {}", since))?;
+                .with_context(|| format!("Invalid number in {since}"))?;
 
             // Walk back N commits from HEAD
             let mut current = head.clone();
@@ -40,7 +40,7 @@ pub fn generate_patches(
                 if let Ok(parent) = current.parent(0) {
                     current = parent;
                 } else {
-                    bail!("Not enough commits for {}", since);
+                    bail!("Not enough commits for {since}");
                 }
             }
             current.id()
@@ -107,21 +107,24 @@ fn generate_patch_for_commit(repo: &Repository, commit: &git2::Commit) -> Result
     let mut patch = String::new();
 
     // Add commit header
-    patch.push_str(&format!("From {} Mon Sep 17 00:00:00 2001\n", commit.id()));
     patch.push_str(&format!(
-        "From: {} <{}>\n",
-        commit.author().name().unwrap_or("Unknown"),
-        commit.author().email().unwrap_or("unknown@example.com")
+        "From {commit_id} Mon Sep 17 00:00:00 2001\n",
+        commit_id = commit.id()
     ));
     patch.push_str(&format!(
-        "Date: {}\n",
-        chrono::DateTime::from_timestamp(commit.time().seconds(), 0)
+        "From: {name} <{email}>\n",
+        name = commit.author().name().unwrap_or("Unknown"),
+        email = commit.author().email().unwrap_or("unknown@example.com")
+    ));
+    patch.push_str(&format!(
+        "Date: {date}\n",
+        date = chrono::DateTime::from_timestamp(commit.time().seconds(), 0)
             .map(|dt| dt.format("%a, %d %b %Y %H:%M:%S %z").to_string())
             .unwrap_or_else(|| "Unknown".to_string())
     ));
     patch.push_str(&format!(
-        "Subject: {}\n",
-        commit.summary().unwrap_or("No subject")
+        "Subject: {subject}\n",
+        subject = commit.summary().unwrap_or("No subject")
     ));
     patch.push('\n');
 
@@ -167,7 +170,11 @@ pub fn create_pull_request_event(
     for (i, patch) in patches.iter().enumerate() {
         let mut tags = vec![Tag::custom(
             TagKind::Custom("alt".into()),
-            vec![format!("git patch: {}/{}", i + 1, patches.len())],
+            vec![format!(
+                "git patch: {current}/{total}",
+                current = i + 1,
+                total = patches.len()
+            )],
         )];
 
         // Add reference to previous patch if not first

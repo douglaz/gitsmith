@@ -168,17 +168,26 @@ fn find_reply_to(event: &Event) -> Option<EventId> {
 pub fn format_pull_request(pr: &PullRequest) -> String {
     let mut output = String::new();
 
-    output.push_str(&format!("Title: {}\n", pr.title));
-    output.push_str(&format!("Author: {}...\n", &pr.author[0..16]));
-    output.push_str(&format!("Status: {}\n", pr.status));
-    output.push_str(&format!("Patches: {}\n", pr.patches_count));
+    output.push_str(&format!("Title: {title}\n", title = pr.title));
+    output.push_str(&format!(
+        "Author: {author}...\n",
+        author = &pr.author[0..16]
+    ));
+    output.push_str(&format!("Status: {status}\n", status = pr.status));
+    output.push_str(&format!(
+        "Patches: {patches_count}\n",
+        patches_count = pr.patches_count
+    ));
 
     if let Some(commit) = &pr.root_commit {
-        output.push_str(&format!("Root: {}...\n", &commit[0..8.min(commit.len())]));
+        output.push_str(&format!(
+            "Root: {commit}...\n",
+            commit = &commit[0..8.min(commit.len())]
+        ));
     }
 
     if !pr.description.is_empty() {
-        output.push_str(&format!("\n{}\n", pr.description));
+        output.push_str(&format!("\n{description}\n", description = pr.description));
     }
 
     output

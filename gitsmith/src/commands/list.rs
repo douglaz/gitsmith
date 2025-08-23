@@ -27,11 +27,14 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
 
     // For now, we'll use a placeholder public key
     // In a real implementation, this would come from the repository's maintainer info
-    let repo_coordinate = format!("30617:placeholder:{}", repo_announcement.identifier);
+    let repo_coordinate = format!(
+        "30617:placeholder:{identifier}",
+        identifier = repo_announcement.identifier
+    );
 
     println!(
-        "Fetching pull requests from {} relay(s)...",
-        repo_announcement.relays.len()
+        "Fetching pull requests from {count} relay(s)...",
+        count = repo_announcement.relays.len()
     );
 
     // List pull requests
@@ -41,18 +44,21 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
     if args.json {
         // Output as JSON
         let json = serde_json::to_string_pretty(&prs)?;
-        println!("{}", json);
+        println!("{json}");
     } else {
         // Human-readable output
         if prs.is_empty() {
             println!("No pull requests found");
         } else {
-            println!("\nFound {} pull request(s):\n", prs.len());
+            println!("\nFound {count} pull request(s):\n", count = prs.len());
             println!("{:-<80}", "");
 
             for (i, pr) in prs.iter().enumerate() {
-                println!("PR #{}", i + 1);
-                println!("{}", pull_request::format_pull_request(pr));
+                println!("PR #{num}", num = i + 1);
+                println!(
+                    "{pr_output}",
+                    pr_output = pull_request::format_pull_request(pr)
+                );
                 println!("{:-<80}", "");
             }
         }

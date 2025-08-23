@@ -40,7 +40,7 @@ pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
             let password = read_password()?;
 
             let nsec = account::export_keys(&password)?;
-            println!("Private key: {}", nsec);
+            println!("Private key: {nsec}");
             Ok(())
         }
         AccountCommands::List => {
@@ -50,7 +50,7 @@ pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
             } else {
                 println!("Accounts:");
                 for account in accounts {
-                    println!("  {}", account);
+                    println!("  {account}");
                 }
             }
             Ok(())

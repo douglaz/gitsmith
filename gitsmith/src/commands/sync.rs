@@ -24,23 +24,29 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
     // Get local git state
     let local_state = get_git_state(&args.repo_path, &repo_announcement.identifier)?;
 
-    println!("Repository: {}", repo_announcement.name);
-    println!("Identifier: {}", repo_announcement.identifier);
+    println!("Repository: {name}", name = repo_announcement.name);
+    println!(
+        "Identifier: {identifier}",
+        identifier = repo_announcement.identifier
+    );
     println!();
 
     // Display local state
     println!("Local Git State:");
     println!("{:-<40}", "");
     for (ref_name, commit) in &local_state.refs {
-        println!("{:<20} {}", ref_name, &commit[..8.min(commit.len())]);
+        println!(
+            "{ref_name:<20} {commit}",
+            commit = &commit[..8.min(commit.len())]
+        );
     }
     println!();
 
     // If relays are configured, fetch remote state
     if !repo_announcement.relays.is_empty() {
         println!(
-            "Fetching state from {} relay(s)...",
-            repo_announcement.relays.len()
+            "Fetching state from {count} relay(s)...",
+            count = repo_announcement.relays.len()
         );
 
         let client = Client::default();
@@ -96,19 +102,21 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
                     for (ref_name, commit) in refs_obj {
                         if let Some(commit_str) = commit.as_str() {
                             println!(
-                                "{:<20} {}",
-                                ref_name,
-                                &commit_str[..8.min(commit_str.len())]
+                                "{ref_name:<20} {commit}",
+                                commit = &commit_str[..8.min(commit_str.len())]
                             );
                         }
                     }
                 }
 
                 println!(
-                    "\nLast updated: {}",
-                    chrono::DateTime::from_timestamp(latest_state.created_at.as_u64() as i64, 0)
-                        .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
-                        .unwrap_or_else(|| "Unknown".to_string())
+                    "\nLast updated: {timestamp}",
+                    timestamp = chrono::DateTime::from_timestamp(
+                        latest_state.created_at.as_u64() as i64,
+                        0
+                    )
+                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+                    .unwrap_or_else(|| "Unknown".to_string())
                 );
             }
         } else {

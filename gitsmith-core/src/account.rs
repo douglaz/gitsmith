@@ -92,7 +92,7 @@ pub fn login(nsec_or_hex: &str, password: &str) -> Result<()> {
     let secret_key_bytes = keys.secret_key().to_secret_bytes();
     let encrypted = cipher
         .encrypt(&nonce, secret_key_bytes.as_ref())
-        .map_err(|e| anyhow::anyhow!("Encryption failed: {}", e))?;
+        .map_err(|e| anyhow::anyhow!("Encryption failed: {e}"))?;
 
     // Load existing storage
     let storage_path = get_account_storage_path()?;
@@ -118,7 +118,7 @@ pub fn login(nsec_or_hex: &str, password: &str) -> Result<()> {
     // Save storage
     storage.save(&storage_path)?;
 
-    println!("Logged in as {}", npub);
+    println!("Logged in as {npub}");
     Ok(())
 }
 
@@ -134,7 +134,7 @@ pub fn logout() -> Result<()> {
     let npub = storage.active_npub.take().unwrap();
     storage.save(&storage_path)?;
 
-    println!("Logged out from {}", npub);
+    println!("Logged out from {npub}");
     Ok(())
 }
 
@@ -164,7 +164,7 @@ pub fn get_active_keys(password: &str) -> Result<Keys> {
 
     // Parse the decrypted key
     let hex_key = hex::encode(decrypted);
-    Keys::parse(&hex_key).map_err(|e| anyhow::anyhow!("Failed to parse key: {}", e))
+    Keys::parse(&hex_key).map_err(|e| anyhow::anyhow!("Failed to parse key: {e}"))
 }
 
 /// Export the active account
@@ -184,7 +184,7 @@ pub fn list_accounts() -> Result<Vec<String>> {
         .map(|a| {
             let active = storage.active_npub.as_ref() == Some(&a.npub);
             if active {
-                format!("{} (active)", a.npub)
+                format!("{npub} (active)", npub = a.npub)
             } else {
                 a.npub.clone()
             }

@@ -40,7 +40,7 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     let repo_announcement = gitsmith_core::detect_from_git(&args.repo_path)?;
 
     // Generate patches
-    println!("Generating patches from {}...", args.since);
+    println!("Generating patches from {since}...", since = args.since);
     let patches = patches::generate_patches(&args.repo_path, Some(&args.since), None)?;
 
     if patches.is_empty() {
@@ -48,7 +48,7 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         return Ok(());
     }
 
-    println!("Generated {} patch(es)", patches.len());
+    println!("Generated {count} patch(es)", count = patches.len());
 
     // Get title and description
     let title = if let Some(t) = args.title {
@@ -73,9 +73,9 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
 
     // Create repository coordinate
     let repo_coordinate = format!(
-        "30617:{}:{}",
-        keys.public_key(),
-        repo_announcement.identifier
+        "30617:{pubkey}:{identifier}",
+        pubkey = keys.public_key(),
+        identifier = repo_announcement.identifier
     );
 
     // Create PR events
@@ -89,7 +89,7 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         args.in_reply_to,
     )?;
 
-    println!("Created {} events", events.len());
+    println!("Created {count} events", count = events.len());
 
     // Send to relays
     if repo_announcement.relays.is_empty() {
@@ -108,8 +108,8 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     println!(
-        "Sending PR to {} relay(s)...",
-        repo_announcement.relays.len()
+        "Sending PR to {count} relay(s)...",
+        count = repo_announcement.relays.len()
     );
 
     for event in events {
