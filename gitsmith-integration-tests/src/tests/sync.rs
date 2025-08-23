@@ -1,4 +1,4 @@
-use crate::helpers::{GitsmithRunner, TestContext, assert_contains};
+use crate::helpers::{GitsmithRunner, TestContext, assert_contains, assert_pr_exists};
 use anyhow::Result;
 use colored::*;
 
@@ -129,8 +129,38 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
         "--json",
     ])?;
 
-    // Verify JSON output
+    // Verify JSON output and parse it
     assert_contains(&output.stdout, "[", "Should output JSON array")?;
+    
+    // Parse and verify the PR details
+    let prs = output.parse_pr_list()?;
+    
+    if prs.is_empty() {
+        anyhow::bail!("Expected at least one PR after sending, but list is empty");
+    }
+    
+    // Find the PR we sent
+    let pr = assert_pr_exists(&prs, "Test PR for listing")?;
+    
+    // Verify PR details
+    if pr.description != "This PR will be listed" {
+        anyhow::bail!(
+            "PR description mismatch. Expected: 'This PR will be listed', Got: '{}'",
+            pr.description
+        );
+    }
+    
+    if pr.patches_count != 2 {
+        anyhow::bail!(
+            "Expected 2 patches (HEAD~2), got {}",
+            pr.patches_count
+        );
+    }
+    
+    if verbose {
+        println!("    ✓ Found PR with title: {}", pr.title);
+        println!("    ✓ PR has {} patches as expected", pr.patches_count);
+    }
 
     Ok(())
 }
@@ -169,6 +199,19 @@ async fn test_list_empty_repo(verbose: bool, keep_temp: bool) -> Result<()> {
     ])?;
 
     assert_contains(&output.stdout, "[]", "Should output empty JSON array")?;
+    
+    // Also parse to verify it's truly empty
+    let prs = output.parse_pr_list()?;
+    if !prs.is_empty() {
+        anyhow::bail!(
+            "Expected empty PR list, but got {} PRs",
+            prs.len()
+        );
+    }
+    
+    if verbose {
+        println!("    ✓ Verified PR list is empty");
+    }
 
     Ok(())
 }

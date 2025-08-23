@@ -162,4 +162,9 @@ impl CommandOutput {
         serde_json::from_str(&self.stdout)
             .with_context(|| format!("Failed to parse JSON from stdout: {}", self.stdout))
     }
+    
+    /// Parse stdout as a list of pull requests
+    pub fn parse_pr_list(&self) -> Result<Vec<crate::helpers::PullRequest>> {
+        self.stdout_json()
+    }
 }

@@ -87,3 +87,53 @@ pub fn assert_file_contains(path: &std::path::Path, text: &str) -> Result<()> {
 
     Ok(())
 }
+
+/// Assert that a PR with given title exists in the list
+pub fn assert_pr_exists<'a>(
+    prs: &'a [crate::helpers::PullRequest],
+    title: &str,
+) -> Result<&'a crate::helpers::PullRequest> {
+    prs.iter()
+        .find(|pr| pr.title == title)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "PR with title '{}' not found. Available PRs: {:?}",
+                title,
+                prs.iter().map(|pr| &pr.title).collect::<Vec<_>>()
+            )
+        })
+}
+
+/// Assert PR has expected details
+pub fn assert_pr_details(
+    pr: &crate::helpers::PullRequest,
+    title: &str,
+    description: &str,
+    patches_count: usize,
+) -> Result<()> {
+    if pr.title != title {
+        anyhow::bail!(
+            "PR title mismatch. Expected: '{}', Got: '{}'",
+            title,
+            pr.title
+        );
+    }
+    
+    if pr.description != description {
+        anyhow::bail!(
+            "PR description mismatch. Expected: '{}', Got: '{}'",
+            description,
+            pr.description
+        );
+    }
+    
+    if pr.patches_count != patches_count {
+        anyhow::bail!(
+            "PR patches count mismatch. Expected: {}, Got: {}",
+            patches_count,
+            pr.patches_count
+        );
+    }
+    
+    Ok(())
+}
