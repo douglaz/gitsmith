@@ -4,8 +4,17 @@ use nostr_sdk::{Client, RelayPoolNotification};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration; // Still needed for timeout in event collection
+use strum::{Display, EnumString};
 
 use crate::patches::{KIND_PULL_REQUEST, KIND_PULL_REQUEST_UPDATE};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Display, EnumString)]
+#[serde(rename_all = "lowercase")]
+#[strum(serialize_all = "lowercase")]
+pub enum PullRequestStatus {
+    Open,
+    Updated,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PullRequest {
@@ -17,7 +26,7 @@ pub struct PullRequest {
     pub updated_at: Option<u64>,
     pub patches_count: usize,
     pub root_commit: Option<String>,
-    pub status: String,
+    pub status: PullRequestStatus,
 }
 
 /// List pull requests for a repository
@@ -85,7 +94,7 @@ pub async fn list_pull_requests(
                 if existing.created_at < event.created_at.as_u64() {
                     existing.updated_at = Some(event.created_at.as_u64());
                     existing.description = pr.description;
-                    existing.status = "updated".to_string();
+                    existing.status = PullRequestStatus::Updated;
                 }
             }
         } else {
@@ -119,9 +128,9 @@ fn event_to_pull_request(event: &Event) -> Result<PullRequest> {
         .count();
 
     let status = if event.kind == KIND_PULL_REQUEST_UPDATE {
-        "updated".to_string()
+        PullRequestStatus::Updated
     } else {
-        "open".to_string()
+        PullRequestStatus::Open
     };
 
     Ok(PullRequest {
