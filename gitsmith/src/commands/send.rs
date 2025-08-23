@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Args;
 use gitsmith_core::{account, patches};
 use nostr_sdk::Client;
@@ -105,7 +105,11 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     }
 
     client.connect().await;
-    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+
+    // Wait for connections to establish
+    gitsmith_core::ensure_relay_connected(&client, 5)
+        .await
+        .context("Failed to connect to relays")?;
 
     println!(
         "Sending PR to {count} relay(s)...",

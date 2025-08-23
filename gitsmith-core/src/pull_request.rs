@@ -1,9 +1,9 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use nostr::{Event, EventId, Filter};
 use nostr_sdk::{Client, RelayPoolNotification};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration;
+use std::time::Duration; // Still needed for timeout in event collection
 
 use crate::patches::{KIND_PULL_REQUEST, KIND_PULL_REQUEST_UPDATE};
 
@@ -35,8 +35,10 @@ pub async fn list_pull_requests(
     // Connect to relays
     client.connect().await;
 
-    // Wait a bit for connections
-    tokio::time::sleep(Duration::from_secs(2)).await;
+    // Wait for connections to establish
+    crate::ensure_relay_connected(&client, 5)
+        .await
+        .context("Failed to connect to relays")?;
 
     // Create filter for PR events
     let mut filter = Filter::new();

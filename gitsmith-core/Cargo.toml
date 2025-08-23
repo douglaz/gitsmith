@@ -12,7 +12,7 @@ serde_json = { workspace = true }
 tokio = { workspace = true }
 
 # Nostr SDK
-nostr = "0.43.0"
+nostr = "0.43.1"
 nostr-sdk = "0.43.0"
 
 # Git operations
