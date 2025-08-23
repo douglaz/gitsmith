@@ -43,7 +43,7 @@ impl AccountStorage {
         let data = fs::read_to_string(path)
             .with_context(|| format!("Failed to read account storage from {:?}", path))?;
 
-        serde_json::from_str(&data).with_context(|| "Failed to parse account storage")
+        serde_json::from_str(&data).context("Failed to parse account storage")
     }
 
     pub fn save(&self, path: &Path) -> Result<()> {
