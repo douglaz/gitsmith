@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use nostr::{Event, EventId, Filter};
 use nostr_sdk::{Client, RelayPoolNotification};
 use serde::{Deserialize, Serialize};
@@ -34,11 +34,6 @@ pub async fn list_pull_requests(
 
     // Connect to relays
     client.connect().await;
-
-    // Wait for connections to establish
-    crate::ensure_relay_connected(5)
-        .await
-        .context("Failed to connect to relays")?;
 
     // Create filter for PR events
     let mut filter = Filter::new();

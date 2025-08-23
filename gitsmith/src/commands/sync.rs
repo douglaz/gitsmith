@@ -57,11 +57,6 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
 
         client.connect().await;
 
-        // Wait for connections to establish
-        gitsmith_core::ensure_relay_connected(5)
-            .await
-            .context("Failed to connect to relays")?;
-
         // Create filter for state events (Kind 30618)
         let filter = Filter::new().kind(Kind::Custom(30618)).custom_tag(
             SingleLetterTag::lowercase(Alphabet::D),
