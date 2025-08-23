@@ -62,6 +62,32 @@ pub async fn announce_repository(
     })
 }
 
+/// Load nostr configuration from git config
+fn load_nostr_config(repo: &Repository) -> Option<(String, Vec<String>)> {
+    let config = repo.config().ok()?;
+
+    // Try to load identifier and relays
+    let identifier = config.get_string("nostr.identifier").ok()?;
+
+    // Load all relay entries
+    let mut relays = Vec::new();
+    if let Ok(mut entries) = config.entries(Some("nostr.relay")) {
+        while let Some(entry) = entries.next() {
+            if let Ok(entry) = entry
+                && let Some(value) = entry.value()
+            {
+                relays.push(value.to_string());
+            }
+        }
+    }
+
+    if relays.is_empty() {
+        return None;
+    }
+
+    Some((identifier, relays))
+}
+
 /// Detect repository information from git
 pub fn detect_from_git(repo_path: &Path) -> Result<RepoAnnouncement> {
     let repo = Repository::open(repo_path)
@@ -88,12 +114,30 @@ pub fn detect_from_git(repo_path: &Path) -> Result<RepoAnnouncement> {
         vec![]
     };
 
+    // Try to load saved nostr configuration
+    let (identifier, relays) = if let Some((saved_id, saved_relays)) = load_nostr_config(&repo) {
+        (saved_id, saved_relays)
+    } else {
+        (sanitize_identifier(&name), vec![])
+    };
+
+    // Try to load other saved values
+    let config = repo.config().ok();
+    let saved_name = config
+        .as_ref()
+        .and_then(|c| c.get_string("nostr.name").ok())
+        .unwrap_or(name);
+    let saved_description = config
+        .as_ref()
+        .and_then(|c| c.get_string("nostr.description").ok())
+        .unwrap_or_default();
+
     Ok(RepoAnnouncement {
-        identifier: sanitize_identifier(&name),
-        name,
-        description: String::new(),
+        identifier,
+        name: saved_name,
+        description: saved_description,
         clone_urls,
-        relays: vec![],
+        relays,
         web: vec![],
         root_commit,
         maintainers: vec![],
@@ -167,6 +211,35 @@ pub fn update_git_config(repo_path: &Path, nostr_url: &str) -> Result<()> {
 
     // Save the nostr URL in git config
     config.set_str("nostr.url", nostr_url)?;
+
+    Ok(())
+}
+
+/// Update git config with full repository announcement
+pub fn update_git_config_full(
+    repo_path: &Path,
+    announcement: &RepoAnnouncement,
+    nostr_url: &str,
+) -> Result<()> {
+    let repo = Repository::open(repo_path)?;
+    let mut config = repo.config()?;
+
+    // Save all nostr configuration
+    config.set_str("nostr.url", nostr_url)?;
+    config.set_str("nostr.identifier", &announcement.identifier)?;
+    config.set_str("nostr.name", &announcement.name)?;
+
+    if !announcement.description.is_empty() {
+        config.set_str("nostr.description", &announcement.description)?;
+    }
+
+    // Clear any existing relays first
+    let _ = config.remove_multivar("nostr.relay", ".*");
+
+    // Save each relay
+    for relay in &announcement.relays {
+        config.set_multivar("nostr.relay", "^$", relay)?;
+    }
 
     Ok(())
 }

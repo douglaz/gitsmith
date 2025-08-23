@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
 use gitsmith_core::{
     PublishConfig, RepoAnnouncement, announce_repository, detect_from_git, get_git_state,
-    update_git_config,
+    update_git_config_full,
 };
 use std::path::PathBuf;
 
@@ -248,7 +248,7 @@ async fn main() -> Result<()> {
             // Update git config if requested
             if update_config
                 && repo_path.exists()
-                && let Err(e) = update_git_config(&repo_path, &result.nostr_url)
+                && let Err(e) = update_git_config_full(&repo_path, &announcement, &result.nostr_url)
             {
                 eprintln!("Warning: Failed to update git config: {}", e);
             }
