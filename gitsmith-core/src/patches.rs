@@ -37,7 +37,7 @@ pub fn generate_patches(
             // Walk back N commits from HEAD
             let mut current = head.clone();
             for _ in 0..n {
-                if let Some(parent) = current.parent(0).ok() {
+                if let Ok(parent) = current.parent(0) {
                     current = parent;
                 } else {
                     bail!("Not enough commits for {}", since);
@@ -123,7 +123,7 @@ fn generate_patch_for_commit(repo: &Repository, commit: &git2::Commit) -> Result
         "Subject: {}\n",
         commit.summary().unwrap_or("No subject")
     ));
-    patch.push_str("\n");
+    patch.push('\n');
 
     // Add commit message body
     if let Some(msg) = commit.message() {

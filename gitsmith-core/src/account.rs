@@ -21,6 +21,12 @@ pub struct AccountStorage {
     pub active_npub: Option<String>,
 }
 
+impl Default for AccountStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AccountStorage {
     pub fn new() -> Self {
         Self {
@@ -73,12 +79,8 @@ fn derive_key(password: &str) -> [u8; 32] {
 
 /// Login with a private key and password
 pub fn login(nsec_or_hex: &str, password: &str) -> Result<()> {
-    // Parse the key
-    let keys = if nsec_or_hex.starts_with("nsec") {
-        Keys::parse(nsec_or_hex)?
-    } else {
-        Keys::parse(nsec_or_hex)?
-    };
+    // Parse the key (works with both nsec bech32 and hex format)
+    let keys = Keys::parse(nsec_or_hex)?;
 
     let npub = keys.public_key().to_bech32()?;
 

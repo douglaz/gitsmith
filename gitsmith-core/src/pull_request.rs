@@ -61,13 +61,11 @@ pub async fn list_pull_requests(
         tokio::select! {
             _ = &mut timeout => break,
             notification = notifications.recv() => {
-                if let Ok(notification) = notification {
-                    if let RelayPoolNotification::Event { event, .. } = notification {
-                        if event.kind == KIND_PULL_REQUEST || event.kind == KIND_PULL_REQUEST_UPDATE {
+                if let Ok(notification) = notification
+                    && let RelayPoolNotification::Event { event, .. } = notification
+                        && (event.kind == KIND_PULL_REQUEST || event.kind == KIND_PULL_REQUEST_UPDATE) {
                             events.push(*event);
                         }
-                    }
-                }
             }
         }
     }
@@ -83,8 +81,8 @@ pub async fn list_pull_requests(
 
         if is_update {
             // Find the original PR this updates
-            if let Some(original_id) = find_reply_to(&event) {
-                if let Some(existing) = prs.get_mut(&original_id) {
+            if let Some(original_id) = find_reply_to(&event)
+                && let Some(existing) = prs.get_mut(&original_id) {
                     // Update the existing PR
                     if existing.created_at < event.created_at.as_u64() {
                         existing.updated_at = Some(event.created_at.as_u64());
@@ -92,7 +90,6 @@ pub async fn list_pull_requests(
                         existing.status = "updated".to_string();
                     }
                 }
-            }
         } else {
             // New PR
             prs.insert(event.id, pr);
@@ -119,7 +116,7 @@ fn event_to_pull_request(event: &Event) -> Result<PullRequest> {
         .filter(|tag| {
             tag.as_slice().len() > 1
                 && tag.as_slice()[0] == "e"
-                && tag.as_slice().get(2).map_or(false, |s| s == "patch")
+                && tag.as_slice().get(2).is_some_and(|s| s == "patch")
         })
         .count();
 
@@ -160,7 +157,7 @@ fn find_reply_to(event: &Event) -> Option<EventId> {
         .find(|tag| {
             tag.as_slice().len() > 1
                 && tag.as_slice()[0] == "e"
-                && tag.as_slice().get(3).map_or(false, |s| s == "reply")
+                && tag.as_slice().get(3).is_some_and(|s| s == "reply")
         })
         .and_then(|tag| tag.as_slice().get(1))
         .and_then(|s| s.parse().ok())
