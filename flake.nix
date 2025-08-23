@@ -40,17 +40,12 @@
             pkg-config
             rustToolchain
             pkgsStatic.stdenv.cc
+            perl  # Required for vendored-openssl build
           ];
           
           buildInputs = with pkgs.pkgsStatic; [
-            openssl
+            # No external OpenSSL needed - using vendored-openssl
           ];
-          
-          # Environment variables for static OpenSSL
-          OPENSSL_STATIC = "1";
-          OPENSSL_LIB_DIR = "${pkgs.pkgsStatic.openssl.out}/lib";
-          OPENSSL_INCLUDE_DIR = "${pkgs.pkgsStatic.openssl.dev}/include";
-          PKG_CONFIG_PATH = "${pkgs.pkgsStatic.openssl.dev}/lib/pkgconfig";
           
           # Force cargo to use the musl target
           CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER = "${pkgs.pkgsStatic.stdenv.cc}/bin/${pkgs.pkgsStatic.stdenv.cc.targetPrefix}cc";
