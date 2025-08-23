@@ -1,4 +1,4 @@
-use crate::helpers::{GitsmithRunner, TestContext, assert_contains, assert_file_exists};
+use crate::helpers::{GitsmithRunner, TestContext, assert_contains};
 use anyhow::Result;
 use colored::*;
 

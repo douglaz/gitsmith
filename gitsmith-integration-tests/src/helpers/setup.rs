@@ -11,7 +11,7 @@ pub struct TestContext {
     pub home_dir: PathBuf,
     pub verbose: bool,
     pub keep_temp: bool,
-    pub test_name: String,
+    pub _test_name: String,
 }
 
 impl TestContext {
@@ -40,11 +40,12 @@ impl TestContext {
             home_dir,
             verbose,
             keep_temp,
-            test_name: test_name.to_string(),
+            _test_name: test_name.to_string(),
         })
     }
 
     /// Get the path to the gitsmith-accounts.json file
+    #[allow(dead_code)]
     pub fn accounts_file(&self) -> PathBuf {
         self.home_dir
             .join(".config/gitsmith/gitsmith-accounts.json")
@@ -109,7 +110,8 @@ impl TestContext {
     }
 
     /// Create a test account and login
-    pub fn setup_test_account(&self, password: &str) -> Result<String> {
+    #[allow(dead_code)]
+    pub fn setup_test_account(&self, _password: &str) -> Result<String> {
         let nsec = Self::generate_test_key();
 
         // Ensure config directory exists

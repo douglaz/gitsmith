@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use assert_cmd::Command;
-use predicates::prelude::*;
 use std::path::Path;
 
 /// Runner for gitsmith commands
@@ -48,7 +47,7 @@ impl GitsmithRunner {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
             success: output.status.success(),
-            exit_code: output.status.code().unwrap_or(-1),
+            _exit_code: output.status.code().unwrap_or(-1),
         };
 
         if self.verbose {
@@ -124,7 +123,7 @@ impl GitsmithRunner {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
             success: output.status.success(),
-            exit_code: output.status.code().unwrap_or(-1),
+            _exit_code: output.status.code().unwrap_or(-1),
         };
 
         if self.verbose && !result.stderr.is_empty() {
@@ -141,21 +140,24 @@ pub struct CommandOutput {
     pub stdout: String,
     pub stderr: String,
     pub success: bool,
-    pub exit_code: i32,
+    pub _exit_code: i32,
 }
 
 impl CommandOutput {
     /// Check if stdout contains a string
+    #[allow(dead_code)]
     pub fn stdout_contains(&self, text: &str) -> bool {
         self.stdout.contains(text)
     }
 
     /// Check if stderr contains a string
+    #[allow(dead_code)]
     pub fn stderr_contains(&self, text: &str) -> bool {
         self.stderr.contains(text)
     }
 
     /// Parse stdout as JSON
+    #[allow(dead_code)]
     pub fn stdout_json<T: serde::de::DeserializeOwned>(&self) -> Result<T> {
         serde_json::from_str(&self.stdout)
             .with_context(|| format!("Failed to parse JSON from stdout: {}", self.stdout))

@@ -16,6 +16,7 @@ pub fn assert_contains(haystack: &str, needle: &str, message: &str) -> Result<()
 }
 
 /// Assert that a string does not contain another string
+#[allow(dead_code)]
 pub fn assert_not_contains(haystack: &str, needle: &str, message: &str) -> Result<()> {
     if haystack.contains(needle) {
         anyhow::bail!(
@@ -29,6 +30,7 @@ pub fn assert_not_contains(haystack: &str, needle: &str, message: &str) -> Resul
 }
 
 /// Assert that a string matches a regex pattern
+#[allow(dead_code)]
 pub fn assert_matches(text: &str, pattern: &str, message: &str) -> Result<()> {
     let re = Regex::new(pattern).context("Invalid regex pattern")?;
     if !re.is_match(text) {
@@ -43,12 +45,13 @@ pub fn assert_matches(text: &str, pattern: &str, message: &str) -> Result<()> {
 }
 
 /// Assert that JSON contains expected fields
+#[allow(dead_code)]
 pub fn assert_json_contains(json_str: &str, expected_fields: &[&str]) -> Result<()> {
     let value: Value = serde_json::from_str(json_str)
         .with_context(|| format!("Failed to parse JSON: {}", json_str))?;
 
     for field in expected_fields {
-        if !value.get(field).is_some() {
+        if value.get(field).is_none() {
             anyhow::bail!(
                 "JSON missing expected field '{}'\nActual JSON: {}",
                 field,
@@ -61,6 +64,7 @@ pub fn assert_json_contains(json_str: &str, expected_fields: &[&str]) -> Result<
 }
 
 /// Assert that a file exists
+#[allow(dead_code)]
 pub fn assert_file_exists(path: &std::path::Path) -> Result<()> {
     if !path.exists() {
         anyhow::bail!("File does not exist: {}", path.display());
