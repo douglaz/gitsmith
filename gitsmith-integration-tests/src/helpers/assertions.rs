@@ -46,7 +46,7 @@ pub fn assert_matches(text: &str, pattern: &str, message: &str) -> Result<()> {
 pub fn assert_json_contains(json_str: &str, expected_fields: &[&str]) -> Result<()> {
     let value: Value = serde_json::from_str(json_str)
         .with_context(|| format!("Failed to parse JSON: {}", json_str))?;
-    
+
     for field in expected_fields {
         if !value.get(field).is_some() {
             anyhow::bail!(
@@ -56,7 +56,7 @@ pub fn assert_json_contains(json_str: &str, expected_fields: &[&str]) -> Result<
             );
         }
     }
-    
+
     Ok(())
 }
 
@@ -72,7 +72,7 @@ pub fn assert_file_exists(path: &std::path::Path) -> Result<()> {
 pub fn assert_file_contains(path: &std::path::Path, text: &str) -> Result<()> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read file: {}", path.display()))?;
-    
+
     if !content.contains(text) {
         anyhow::bail!(
             "File {} does not contain expected text: '{}'",
@@ -80,6 +80,6 @@ pub fn assert_file_contains(path: &std::path::Path, text: &str) -> Result<()> {
             text
         );
     }
-    
+
     Ok(())
 }
