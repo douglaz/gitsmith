@@ -41,7 +41,7 @@ impl AccountStorage {
         }
 
         let data = fs::read_to_string(path)
-            .with_context(|| format!("Failed to read account storage from {:?}", path))?;
+            .with_context(|| format!("Failed to read account storage from {path:?}"))?;
 
         serde_json::from_str(&data).context("Failed to parse account storage")
     }
@@ -50,12 +50,12 @@ impl AccountStorage {
         // Create parent directory if it doesn't exist
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create directory {:?}", parent))?;
+                .with_context(|| format!("Failed to create directory {parent:?}"))?;
         }
 
         let data = serde_json::to_string_pretty(self)?;
         fs::write(path, data)
-            .with_context(|| format!("Failed to write account storage to {:?}", path))
+            .with_context(|| format!("Failed to write account storage to {path:?}"))
     }
 }
 

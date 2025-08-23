@@ -68,7 +68,7 @@ pub async fn announce_repository(
 /// Detect repository information from git
 pub fn detect_from_git(repo_path: &Path) -> Result<RepoAnnouncement> {
     let repo = Repository::open(repo_path)
-        .with_context(|| format!("Failed to open git repository at {:?}", repo_path))?;
+        .with_context(|| format!("Failed to open git repository at {repo_path:?}"))?;
 
     // Get repo name from directory
     let name = repo_path
