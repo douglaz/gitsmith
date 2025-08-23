@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use gitsmith_core::{account, detect_from_git, pull_request};
+use gitsmith_core::{account, detect_from_git, get_repo_owner, pull_request};
 use std::path::PathBuf;
 
 #[derive(Args)]
@@ -25,10 +25,17 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
         return Ok(());
     }
 
-    // Get the active account's public key
-    let public_key = account::get_active_public_key().context(
-        "Failed to get active account. Please login first with 'gitsmith account login'",
-    )?;
+    // Get the repository owner's public key
+    // First try to get it from the repo config (set during init)
+    // If not found, fall back to active account
+    let public_key = if let Some(owner) = get_repo_owner(&args.repo_path)? {
+        owner
+    } else {
+        // Fall back to active account if repo doesn't have owner saved
+        account::get_active_public_key().context(
+            "Repository owner not found in config and no active account. Please login first with 'gitsmith account login'",
+        )?
+    };
 
     let repo_coordinate = format!(
         "30617:{pubkey}:{identifier}",

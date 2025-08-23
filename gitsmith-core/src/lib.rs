@@ -11,6 +11,7 @@ pub use events::{
     build_state_event,
 };
 pub use repo::{
-    announce_repository, detect_from_git, get_git_state, update_git_config, update_git_config_full,
+    announce_repository, detect_from_git, get_git_state, get_repo_owner, update_git_config,
+    update_git_config_full,
 };
 pub use types::{GitState, PublishConfig, PublishResult, RepoAnnouncement};

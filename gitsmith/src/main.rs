@@ -4,6 +4,7 @@ use gitsmith_core::{
     PublishConfig, RepoAnnouncement, announce_repository, detect_from_git, get_git_state,
     update_git_config_full,
 };
+use nostr_sdk::nostr::{Keys, ToBech32};
 use std::path::PathBuf;
 
 mod commands;
@@ -235,6 +236,13 @@ async fn main() -> Result<()> {
                 private_key
             };
 
+            // Get the npub of the person initializing
+            let keys = Keys::parse(&clean_private_key).context("Failed to parse private key")?;
+            let owner_npub = keys
+                .public_key()
+                .to_bech32()
+                .context("Failed to convert public key to npub")?;
+
             // Publish
             let config = PublishConfig {
                 timeout_secs: timeout,
@@ -248,7 +256,12 @@ async fn main() -> Result<()> {
             // Update git config if requested
             if update_config
                 && repo_path.exists()
-                && let Err(e) = update_git_config_full(&repo_path, &announcement, &result.nostr_url)
+                && let Err(e) = update_git_config_full(
+                    &repo_path,
+                    &announcement,
+                    &result.nostr_url,
+                    &owner_npub,
+                )
             {
                 eprintln!("Warning: Failed to update git config: {}", e);
             }

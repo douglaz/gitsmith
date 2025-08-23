@@ -3,7 +3,6 @@ use crate::helpers::{
 };
 use anyhow::Result;
 use colored::*;
-use tokio::time::{Duration, sleep};
 
 /// Run all pull request workflow tests
 pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)> {
@@ -139,19 +138,13 @@ async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
         "Should send successfully",
     )?;
 
-    // Wait a moment for the PR to propagate to the relay
-    sleep(Duration::from_secs(3)).await;
-
-    // Now verify the PR actually exists by listing PRs
-    let list_output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // List PRs with retry to handle propagation delays
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-
-    // Parse the PR list
-    let prs = list_output.parse_pr_list()?;
+        2, // max retries
+    )
+    .await?;
 
     // Verify we have exactly one PR
     if prs.is_empty() {
@@ -215,18 +208,13 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
     )?;
     assert_contains(&output.stderr, "✅", "Should succeed")?;
 
-    // Wait a moment for the PR to propagate to the relay
-    sleep(Duration::from_secs(3)).await;
-
-    // Verify the PR exists with correct details
-    let list_output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // List PRs with retry to handle propagation delays
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-
-    let prs = list_output.parse_pr_list()?;
+        2, // max retries
+    )
+    .await?;
     let pr = assert_pr_exists(&prs, "Feature: Add new functionality")?;
 
     // Note: The description might be modified when stored, so we check if it contains key parts
@@ -345,18 +333,13 @@ async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result
     assert_contains(&output.stderr, "Created", "Should create events")?;
     assert_contains(&output.stderr, "✅", "Should succeed")?;
 
-    // Wait a moment for the PR to propagate to the relay
-    sleep(Duration::from_secs(3)).await;
-
-    // Verify the PR with multiple patches
-    let list_output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // List PRs with retry to handle propagation delays
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-
-    let prs = list_output.parse_pr_list()?;
+        2, // max retries
+    )
+    .await?;
     let pr = assert_pr_exists(&prs, "Multiple commits PR")?;
     assert_pr_details(
         pr,
@@ -425,17 +408,13 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
         "HEAD~3",
     ])?;
 
-    // Wait a moment for the PR to propagate to the relay
-    sleep(Duration::from_secs(3)).await;
-
-    // Step 3: Verify first PR exists
-    let output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // Step 3: Verify first PR exists with retry
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-    let prs = output.parse_pr_list()?;
+        3, // max retries
+    )
+    .await?;
     if prs.len() != 1 {
         anyhow::bail!("Expected 1 PR after first send, got {}", prs.len());
     }
@@ -460,17 +439,13 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
         "HEAD~5",
     ])?;
 
-    // Wait a moment for the PR to propagate to the relay
-    sleep(Duration::from_secs(3)).await;
-
-    // Step 6: Verify both PRs exist
-    let output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // Step 6: Verify both PRs exist with retry
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-    let prs = output.parse_pr_list()?;
+        3, // max retries
+    )
+    .await?;
     if prs.len() != 2 {
         anyhow::bail!("Expected 2 PRs after second send, got {}", prs.len());
     }
@@ -541,17 +516,13 @@ async fn test_multiple_prs(verbose: bool, keep_temp: bool) -> Result<()> {
         ])?;
     }
 
-    // Wait a moment for all PRs to propagate to the relay
-    sleep(Duration::from_secs(5)).await;
-
-    // List and verify all PRs
-    let output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // List and verify all PRs with retry
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-    let prs = output.parse_pr_list()?;
+        3, // max retries
+    )
+    .await?;
 
     // Verify we have exactly 3 PRs
     if prs.len() != 3 {

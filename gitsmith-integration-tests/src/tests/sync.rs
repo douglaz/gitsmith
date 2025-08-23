@@ -1,7 +1,6 @@
 use crate::helpers::{GitsmithRunner, TestContext, assert_contains, assert_pr_exists};
 use anyhow::Result;
 use colored::*;
-use tokio::time::{Duration, sleep};
 
 /// Run all list and sync tests
 pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)> {
@@ -122,22 +121,13 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
         "HEAD~2",
     ])?;
 
-    // Wait a moment for the PR to propagate to the relay
-    sleep(Duration::from_secs(3)).await;
-
-    // List PRs
-    let output = runner.run_success(&[
-        "list",
-        "--repo-path",
+    // List PRs with retry to handle propagation delays
+    let prs = crate::helpers::list_prs_with_retry(
+        &runner,
         &ctx.repo_path.to_string_lossy(),
-        "--json",
-    ])?;
-
-    // Verify JSON output and parse it
-    assert_contains(&output.stdout, "[", "Should output JSON array")?;
-
-    // Parse and verify the PR details
-    let prs = output.parse_pr_list()?;
+        2, // max retries
+    )
+    .await?;
 
     if prs.is_empty() {
         anyhow::bail!("Expected at least one PR after sending, but list is empty");
