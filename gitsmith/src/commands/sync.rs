@@ -91,17 +91,18 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
             if let Some(latest_state) = state_events.first() {
                 // Parse refs from content (JSON)
                 if let Ok(refs) = serde_json::from_str::<serde_json::Value>(&latest_state.content)
-                    && let Some(refs_obj) = refs.as_object() {
-                        for (ref_name, commit) in refs_obj {
-                            if let Some(commit_str) = commit.as_str() {
-                                println!(
-                                    "{:<20} {}",
-                                    ref_name,
-                                    &commit_str[..8.min(commit_str.len())]
-                                );
-                            }
+                    && let Some(refs_obj) = refs.as_object()
+                {
+                    for (ref_name, commit) in refs_obj {
+                        if let Some(commit_str) = commit.as_str() {
+                            println!(
+                                "{:<20} {}",
+                                ref_name,
+                                &commit_str[..8.min(commit_str.len())]
+                            );
                         }
                     }
+                }
 
                 println!(
                     "\nLast updated: {}",

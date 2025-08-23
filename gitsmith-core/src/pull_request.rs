@@ -82,14 +82,15 @@ pub async fn list_pull_requests(
         if is_update {
             // Find the original PR this updates
             if let Some(original_id) = find_reply_to(&event)
-                && let Some(existing) = prs.get_mut(&original_id) {
-                    // Update the existing PR
-                    if existing.created_at < event.created_at.as_u64() {
-                        existing.updated_at = Some(event.created_at.as_u64());
-                        existing.description = pr.description;
-                        existing.status = "updated".to_string();
-                    }
+                && let Some(existing) = prs.get_mut(&original_id)
+            {
+                // Update the existing PR
+                if existing.created_at < event.created_at.as_u64() {
+                    existing.updated_at = Some(event.created_at.as_u64());
+                    existing.description = pr.description;
+                    existing.status = "updated".to_string();
                 }
+            }
         } else {
             // New PR
             prs.insert(event.id, pr);
