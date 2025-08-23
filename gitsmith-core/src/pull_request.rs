@@ -198,3 +198,118 @@ pub fn format_pull_request(pr: &PullRequest) -> String {
 
     output
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json;
+
+    #[test]
+    fn test_pull_request_status_serialization() {
+        // Test Open status
+        let open_status = PullRequestStatus::Open;
+        let json = serde_json::to_string(&open_status).unwrap();
+        assert_eq!(json, r#""open""#);
+
+        // Test Updated status
+        let updated_status = PullRequestStatus::Updated;
+        let json = serde_json::to_string(&updated_status).unwrap();
+        assert_eq!(json, r#""updated""#);
+    }
+
+    #[test]
+    fn test_pull_request_status_deserialization() {
+        // Test deserializing "open"
+        let open_status: PullRequestStatus = serde_json::from_str(r#""open""#).unwrap();
+        assert_eq!(open_status, PullRequestStatus::Open);
+
+        // Test deserializing "updated"
+        let updated_status: PullRequestStatus = serde_json::from_str(r#""updated""#).unwrap();
+        assert_eq!(updated_status, PullRequestStatus::Updated);
+    }
+
+    #[test]
+    fn test_pull_request_status_display() {
+        assert_eq!(PullRequestStatus::Open.to_string(), "open");
+        assert_eq!(PullRequestStatus::Updated.to_string(), "updated");
+    }
+
+    #[test]
+    fn test_pull_request_serialization() {
+        let pr = PullRequest {
+            id: "test-id-123".to_string(),
+            title: "Test PR".to_string(),
+            description: "This is a test pull request".to_string(),
+            author: "npub1234567890abcdef".to_string(),
+            created_at: 1234567890,
+            updated_at: Some(1234567900),
+            patches_count: 3,
+            root_commit: Some("abc123def456".to_string()),
+            status: PullRequestStatus::Open,
+        };
+
+        let json = serde_json::to_value(&pr).unwrap();
+
+        // Verify the structure
+        assert_eq!(json["id"], "test-id-123");
+        assert_eq!(json["title"], "Test PR");
+        assert_eq!(json["description"], "This is a test pull request");
+        assert_eq!(json["author"], "npub1234567890abcdef");
+        assert_eq!(json["created_at"], 1234567890);
+        assert_eq!(json["updated_at"], 1234567900);
+        assert_eq!(json["patches_count"], 3);
+        assert_eq!(json["root_commit"], "abc123def456");
+        assert_eq!(json["status"], "open");
+    }
+
+    #[test]
+    fn test_pull_request_deserialization() {
+        let json = r#"{
+            "id": "test-id-456",
+            "title": "Another PR",
+            "description": "Description here",
+            "author": "npub9876543210fedcba",
+            "created_at": 9876543210,
+            "updated_at": null,
+            "patches_count": 1,
+            "root_commit": null,
+            "status": "updated"
+        }"#;
+
+        let pr: PullRequest = serde_json::from_str(json).unwrap();
+
+        assert_eq!(pr.id, "test-id-456");
+        assert_eq!(pr.title, "Another PR");
+        assert_eq!(pr.description, "Description here");
+        assert_eq!(pr.author, "npub9876543210fedcba");
+        assert_eq!(pr.created_at, 9876543210);
+        assert_eq!(pr.updated_at, None);
+        assert_eq!(pr.patches_count, 1);
+        assert_eq!(pr.root_commit, None);
+        assert_eq!(pr.status, PullRequestStatus::Updated);
+    }
+
+    #[test]
+    fn test_format_pull_request() {
+        let pr = PullRequest {
+            id: "id123".to_string(),
+            title: "Test Title".to_string(),
+            description: "Test description".to_string(),
+            author: "npub1234567890123456789".to_string(),
+            created_at: 1000000,
+            updated_at: None,
+            patches_count: 2,
+            root_commit: Some("commit12345678".to_string()),
+            status: PullRequestStatus::Open,
+        };
+
+        let formatted = format_pull_request(&pr);
+
+        assert!(formatted.contains("Title: Test Title"));
+        assert!(formatted.contains("Author: npub123456789012"));
+        assert!(formatted.contains("Status: open"));
+        assert!(formatted.contains("Patches: 2"));
+        assert!(formatted.contains("Root: commit12"));
+        assert!(formatted.contains("Test description"));
+    }
+}
