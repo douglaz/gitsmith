@@ -27,13 +27,21 @@ pub struct SendArgs {
     /// Repository path
     #[arg(long, default_value = ".")]
     pub repo_path: PathBuf,
+
+    /// Password to decrypt account keys (will prompt if not provided)
+    #[arg(long, env = "GITSMITH_PASSWORD")]
+    pub password: Option<String>,
 }
 
 pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     // Get account keys
-    eprint!("Enter password: ");
-    io::stderr().flush()?;
-    let password = read_password()?;
+    let password = if let Some(pwd) = args.password {
+        pwd
+    } else {
+        eprint!("Enter password: ");
+        io::stderr().flush()?;
+        read_password()?
+    };
     let keys = account::get_active_keys(&password)?;
 
     // Get repository info
