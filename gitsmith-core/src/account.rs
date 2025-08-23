@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, ensure};
 use chacha20poly1305::{
     ChaCha20Poly1305, Nonce,
     aead::{Aead, AeadCore, KeyInit, OsRng},
@@ -127,9 +127,7 @@ pub fn logout() -> Result<()> {
     let storage_path = get_account_storage_path()?;
     let mut storage = AccountStorage::load(&storage_path)?;
 
-    if storage.active_npub.is_none() {
-        bail!("No active account to logout");
-    }
+    ensure!(storage.active_npub.is_some(), "No active account to logout");
 
     let npub = storage.active_npub.take().unwrap();
     storage.save(&storage_path)?;

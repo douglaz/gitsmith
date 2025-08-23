@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
 use gitsmith_core::{
     PublishConfig, RepoAnnouncement, announce_repository, detect_from_git, get_git_state,
@@ -166,13 +166,15 @@ async fn main() -> Result<()> {
             update_git_config: update_config,
         } => {
             // Validate inputs
-            if relays.is_empty() {
-                bail!("At least one relay is required (--relay)");
-            }
+            ensure!(
+                !relays.is_empty(),
+                "At least one relay is required (--relay)"
+            );
 
-            if identifier.contains(' ') || identifier.contains('/') {
-                bail!("Identifier must not contain spaces or slashes");
-            }
+            ensure!(
+                !identifier.contains(' ') && !identifier.contains('/'),
+                "Identifier must not contain spaces or slashes"
+            );
 
             // Build announcement
             let mut announcement = if repo_path.exists() {
@@ -218,9 +220,10 @@ async fn main() -> Result<()> {
             }
 
             // Ensure we have a root commit
-            if announcement.root_commit.is_empty() {
-                bail!("Root commit could not be detected. Please specify --root-commit");
-            }
+            ensure!(
+                !announcement.root_commit.is_empty(),
+                "Root commit could not be detected. Please specify --root-commit"
+            );
 
             // Clean up private key (remove nsec prefix if present)
             let clean_private_key = if private_key.starts_with("nsec") {

@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use git2::Repository;
 use nostr::{Event, EventBuilder, Keys, Kind, Tag, TagKind};
 use std::path::Path;
@@ -27,9 +27,10 @@ pub fn generate_patches(
         let since_oid = if since.contains("~") {
             // Handle HEAD~N notation
             let parts: Vec<&str> = since.split('~').collect();
-            if parts.len() != 2 || parts[0] != "HEAD" {
-                bail!("Invalid commit reference: {since}");
-            }
+            ensure!(
+                parts.len() == 2 && parts[0] == "HEAD",
+                "Invalid commit reference: {since}"
+            );
             let n: usize = parts[1]
                 .parse()
                 .with_context(|| format!("Invalid number in {since}"))?;
@@ -231,9 +232,10 @@ pub fn create_pull_request_event(
 /// Parse a repository coordinate (e.g., "30617:pubkey:identifier")
 pub fn parse_repo_coordinate(coordinate: &str) -> Result<(String, String, String)> {
     let parts: Vec<&str> = coordinate.split(':').collect();
-    if parts.len() != 3 {
-        bail!("Invalid repository coordinate format. Expected: kind:pubkey:identifier");
-    }
+    ensure!(
+        parts.len() == 3,
+        "Invalid repository coordinate format. Expected: kind:pubkey:identifier"
+    );
 
     Ok((
         parts[0].to_string(),
