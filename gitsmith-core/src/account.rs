@@ -3,7 +3,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Nonce,
     aead::{Aead, AeadCore, KeyInit, OsRng},
 };
-use nostr::{Keys, ToBech32};
+use nostr::{FromBech32, Keys, PublicKey, ToBech32};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -169,6 +169,20 @@ pub fn get_active_keys(password: &str) -> Result<Keys> {
 pub fn export_keys(password: &str) -> Result<String> {
     let keys = get_active_keys(password)?;
     Ok(keys.secret_key().to_bech32()?)
+}
+
+/// Get the active account's public key (no password required)
+pub fn get_active_public_key() -> Result<String> {
+    let storage_path = get_account_storage_path()?;
+    let storage = AccountStorage::load(&storage_path)?;
+
+    let active_npub = storage
+        .active_npub
+        .context("No active account. Please login first")?;
+
+    // Convert npub to hex public key
+    let public_key = nostr::PublicKey::from_bech32(&active_npub)?;
+    Ok(public_key.to_hex())
 }
 
 /// List all accounts

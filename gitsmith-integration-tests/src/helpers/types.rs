@@ -19,7 +19,7 @@ impl PullRequest {
     pub fn find_by_title<'a>(prs: &'a [PullRequest], title: &str) -> Option<&'a PullRequest> {
         prs.iter().find(|pr| pr.title == title)
     }
-    
+
     /// Find PRs by author
     pub fn find_by_author<'a>(prs: &'a [PullRequest], author: &str) -> Vec<&'a PullRequest> {
         prs.iter().filter(|pr| pr.author == author).collect()

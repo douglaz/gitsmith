@@ -93,15 +93,13 @@ pub fn assert_pr_exists<'a>(
     prs: &'a [crate::helpers::PullRequest],
     title: &str,
 ) -> Result<&'a crate::helpers::PullRequest> {
-    prs.iter()
-        .find(|pr| pr.title == title)
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "PR with title '{}' not found. Available PRs: {:?}",
-                title,
-                prs.iter().map(|pr| &pr.title).collect::<Vec<_>>()
-            )
-        })
+    prs.iter().find(|pr| pr.title == title).ok_or_else(|| {
+        anyhow::anyhow!(
+            "PR with title '{}' not found. Available PRs: {:?}",
+            title,
+            prs.iter().map(|pr| &pr.title).collect::<Vec<_>>()
+        )
+    })
 }
 
 /// Assert PR has expected details
@@ -118,7 +116,7 @@ pub fn assert_pr_details(
             pr.title
         );
     }
-    
+
     if pr.description != description {
         anyhow::bail!(
             "PR description mismatch. Expected: '{}', Got: '{}'",
@@ -126,7 +124,7 @@ pub fn assert_pr_details(
             pr.description
         );
     }
-    
+
     if pr.patches_count != patches_count {
         anyhow::bail!(
             "PR patches count mismatch. Expected: {}, Got: {}",
@@ -134,6 +132,6 @@ pub fn assert_pr_details(
             pr.patches_count
         );
     }
-    
+
     Ok(())
 }

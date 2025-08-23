@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use gitsmith_core::{detect_from_git, pull_request};
+use gitsmith_core::{account, detect_from_git, pull_request};
 use std::path::PathBuf;
 
 #[derive(Args)]
@@ -25,10 +25,14 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
         return Ok(());
     }
 
-    // For now, we'll use a placeholder public key
-    // In a real implementation, this would come from the repository's maintainer info
+    // Get the active account's public key
+    let public_key = account::get_active_public_key().context(
+        "Failed to get active account. Please login first with 'gitsmith account login'",
+    )?;
+
     let repo_coordinate = format!(
-        "30617:placeholder:{identifier}",
+        "30617:{pubkey}:{identifier}",
+        pubkey = public_key,
         identifier = repo_announcement.identifier
     );
 

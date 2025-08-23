@@ -210,9 +210,12 @@ pub fn create_pull_request_event(
         Tag::custom(TagKind::Custom("c".into()), vec![root_commit.to_string()]),
     ];
 
-    // Add reference to patches
-    if !patch_event_ids.is_empty() {
-        pr_tags.push(Tag::event(patch_event_ids[0]));
+    // Add reference to patches with "patch" marker
+    for patch_id in &patch_event_ids {
+        pr_tags.push(Tag::custom(
+            TagKind::Custom("e".into()),
+            vec![patch_id.to_string(), "patch".to_string()],
+        ));
     }
 
     // Add reply reference if updating

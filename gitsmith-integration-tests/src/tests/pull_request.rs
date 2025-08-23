@@ -3,6 +3,7 @@ use crate::helpers::{
 };
 use anyhow::Result;
 use colored::*;
+use tokio::time::{Duration, sleep};
 
 /// Run all pull request workflow tests
 pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)> {
@@ -138,6 +139,9 @@ async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
         "Should send successfully",
     )?;
 
+    // Wait a moment for the PR to propagate to the relay
+    sleep(Duration::from_secs(3)).await;
+
     // Now verify the PR actually exists by listing PRs
     let list_output = runner.run_success(&[
         "list",
@@ -148,16 +152,16 @@ async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
 
     // Parse the PR list
     let prs = list_output.parse_pr_list()?;
-    
+
     // Verify we have exactly one PR
     if prs.is_empty() {
         anyhow::bail!("No PRs found after sending. The PR was not actually created!");
     }
-    
+
     // Find and verify our PR
     let pr = assert_pr_exists(&prs, "Test PR")?;
     assert_pr_details(pr, "Test PR", "This is a test PR", 1)?;
-    
+
     if verbose {
         println!("    ✓ Verified PR exists with correct details");
     }
@@ -211,6 +215,9 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
     )?;
     assert_contains(&output.stderr, "✅", "Should succeed")?;
 
+    // Wait a moment for the PR to propagate to the relay
+    sleep(Duration::from_secs(3)).await;
+
     // Verify the PR exists with correct details
     let list_output = runner.run_success(&[
         "list",
@@ -221,7 +228,7 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
 
     let prs = list_output.parse_pr_list()?;
     let pr = assert_pr_exists(&prs, "Feature: Add new functionality")?;
-    
+
     // Note: The description might be modified when stored, so we check if it contains key parts
     if !pr.description.contains("Feature A") || !pr.description.contains("Feature B") {
         anyhow::bail!(
@@ -229,14 +236,11 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
             pr.description
         );
     }
-    
+
     if pr.patches_count != 2 {
-        anyhow::bail!(
-            "Expected 2 patches, got {}",
-            pr.patches_count
-        );
+        anyhow::bail!("Expected 2 patches, got {}", pr.patches_count);
     }
-    
+
     if verbose {
         println!("    ✓ Verified PR with custom title/description");
     }
@@ -341,6 +345,9 @@ async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result
     assert_contains(&output.stderr, "Created", "Should create events")?;
     assert_contains(&output.stderr, "✅", "Should succeed")?;
 
+    // Wait a moment for the PR to propagate to the relay
+    sleep(Duration::from_secs(3)).await;
+
     // Verify the PR with multiple patches
     let list_output = runner.run_success(&[
         "list",
@@ -351,8 +358,13 @@ async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result
 
     let prs = list_output.parse_pr_list()?;
     let pr = assert_pr_exists(&prs, "Multiple commits PR")?;
-    assert_pr_details(pr, "Multiple commits PR", "This PR contains multiple patches", 5)?;
-    
+    assert_pr_details(
+        pr,
+        "Multiple commits PR",
+        "This PR contains multiple patches",
+        5,
+    )?;
+
     if verbose {
         println!("    ✓ Verified PR with 5 patches");
     }
@@ -413,6 +425,9 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
         "HEAD~3",
     ])?;
 
+    // Wait a moment for the PR to propagate to the relay
+    sleep(Duration::from_secs(3)).await;
+
     // Step 3: Verify first PR exists
     let output = runner.run_success(&[
         "list",
@@ -444,6 +459,9 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
         "test",
         "HEAD~5",
     ])?;
+
+    // Wait a moment for the PR to propagate to the relay
+    sleep(Duration::from_secs(3)).await;
 
     // Step 6: Verify both PRs exist
     let output = runner.run_success(&[
@@ -522,6 +540,9 @@ async fn test_multiple_prs(verbose: bool, keep_temp: bool) -> Result<()> {
             range,
         ])?;
     }
+
+    // Wait a moment for all PRs to propagate to the relay
+    sleep(Duration::from_secs(5)).await;
 
     // List and verify all PRs
     let output = runner.run_success(&[

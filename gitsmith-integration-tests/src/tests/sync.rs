@@ -1,6 +1,7 @@
 use crate::helpers::{GitsmithRunner, TestContext, assert_contains, assert_pr_exists};
 use anyhow::Result;
 use colored::*;
+use tokio::time::{Duration, sleep};
 
 /// Run all list and sync tests
 pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)> {
@@ -121,6 +122,9 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
         "HEAD~2",
     ])?;
 
+    // Wait a moment for the PR to propagate to the relay
+    sleep(Duration::from_secs(3)).await;
+
     // List PRs
     let output = runner.run_success(&[
         "list",
@@ -131,17 +135,17 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
 
     // Verify JSON output and parse it
     assert_contains(&output.stdout, "[", "Should output JSON array")?;
-    
+
     // Parse and verify the PR details
     let prs = output.parse_pr_list()?;
-    
+
     if prs.is_empty() {
         anyhow::bail!("Expected at least one PR after sending, but list is empty");
     }
-    
+
     // Find the PR we sent
     let pr = assert_pr_exists(&prs, "Test PR for listing")?;
-    
+
     // Verify PR details
     if pr.description != "This PR will be listed" {
         anyhow::bail!(
@@ -149,14 +153,11 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
             pr.description
         );
     }
-    
+
     if pr.patches_count != 2 {
-        anyhow::bail!(
-            "Expected 2 patches (HEAD~2), got {}",
-            pr.patches_count
-        );
+        anyhow::bail!("Expected 2 patches (HEAD~2), got {}", pr.patches_count);
     }
-    
+
     if verbose {
         println!("    ✓ Found PR with title: {}", pr.title);
         println!("    ✓ PR has {} patches as expected", pr.patches_count);
@@ -199,16 +200,13 @@ async fn test_list_empty_repo(verbose: bool, keep_temp: bool) -> Result<()> {
     ])?;
 
     assert_contains(&output.stdout, "[]", "Should output empty JSON array")?;
-    
+
     // Also parse to verify it's truly empty
     let prs = output.parse_pr_list()?;
     if !prs.is_empty() {
-        anyhow::bail!(
-            "Expected empty PR list, but got {} PRs",
-            prs.len()
-        );
+        anyhow::bail!("Expected empty PR list, but got {} PRs", prs.len());
     }
-    
+
     if verbose {
         println!("    ✓ Verified PR list is empty");
     }
