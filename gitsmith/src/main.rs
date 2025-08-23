@@ -253,25 +253,25 @@ async fn main() -> Result<()> {
             // Output result
             match output {
                 OutputFormat::Human => {
-                    println!("✅ Repository announced successfully!");
-                    println!();
-                    println!("Event ID: {}", result.event_id);
-                    println!("Nostr URL: {}", result.nostr_url);
-                    println!();
-                    println!("Published to {} relays:", result.successes.len());
+                    eprintln!("✅ Repository announced successfully!");
+                    eprintln!();
+                    eprintln!("Event ID: {}", result.event_id);
+                    eprintln!("Nostr URL: {}", result.nostr_url);
+                    eprintln!();
+                    eprintln!("Published to {} relays:", result.successes.len());
                     for relay in &result.successes {
-                        println!("  ✓ {}", relay);
+                        eprintln!("  ✓ {}", relay);
                     }
                     if !result.failures.is_empty() {
-                        println!();
-                        println!("⚠️  Failed relays:");
+                        eprintln!();
+                        eprintln!("⚠️  Failed relays:");
                         for (relay, error) in &result.failures {
-                            println!("  ✗ {}: {}", relay, error);
+                            eprintln!("  ✗ {}: {}", relay, error);
                         }
                     }
-                    println!();
-                    println!("To clone this repository:");
-                    println!("  git clone {}", result.nostr_url);
+                    eprintln!();
+                    eprintln!("To clone this repository:");
+                    eprintln!("  git clone {}", result.nostr_url);
                 }
                 OutputFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(&result)?);
@@ -304,7 +304,7 @@ async fn main() -> Result<()> {
 
             if let Some(path) = output {
                 std::fs::write(path, json)?;
-                println!("Repository configuration written to file");
+                eprintln!("Repository configuration written to file");
             } else {
                 println!("{}", json);
             }
@@ -329,10 +329,10 @@ async fn main() -> Result<()> {
                     println!("{}", serde_json::to_string_pretty(&json)?);
                 }
                 OutputFormat::Human => {
-                    println!("Git State for '{}':", state.identifier);
-                    println!();
+                    eprintln!("Git State for '{}':", state.identifier);
+                    eprintln!();
                     for (ref_name, commit) in &state.refs {
-                        println!("  {} -> {}", ref_name, &commit[..8]);
+                        eprintln!("  {} -> {}", ref_name, &commit[..8]);
                     }
                 }
                 OutputFormat::Minimal => {

@@ -118,7 +118,7 @@ pub fn login(nsec_or_hex: &str, password: &str) -> Result<()> {
     // Save storage
     storage.save(&storage_path)?;
 
-    println!("Logged in as {npub}");
+    eprintln!("Logged in as {npub}");
     Ok(())
 }
 
@@ -134,7 +134,7 @@ pub fn logout() -> Result<()> {
     let npub = storage.active_npub.take().unwrap();
     storage.save(&storage_path)?;
 
-    println!("Logged out from {npub}");
+    eprintln!("Logged out from {npub}");
     Ok(())
 }
 

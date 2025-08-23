@@ -23,8 +23,8 @@ pub enum AccountCommands {
 pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
     match command {
         AccountCommands::Login { nsec } => {
-            print!("Enter password to encrypt key: ");
-            io::stdout().flush()?;
+            eprint!("Enter password to encrypt key: ");
+            io::stderr().flush()?;
             let password = read_password()?;
 
             account::login(&nsec, &password)?;
@@ -35,8 +35,8 @@ pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
             Ok(())
         }
         AccountCommands::Export => {
-            print!("Enter password to decrypt key: ");
-            io::stdout().flush()?;
+            eprint!("Enter password to decrypt key: ");
+            io::stderr().flush()?;
             let password = read_password()?;
 
             let nsec = account::export_keys(&password)?;
@@ -46,11 +46,11 @@ pub async fn handle_account_command(command: AccountCommands) -> Result<()> {
         AccountCommands::List => {
             let accounts = account::list_accounts()?;
             if accounts.is_empty() {
-                println!("No accounts found");
+                eprintln!("No accounts found");
             } else {
-                println!("Accounts:");
+                eprintln!("Accounts:");
                 for account in accounts {
-                    println!("  {account}");
+                    eprintln!("  {account}");
                 }
             }
             Ok(())

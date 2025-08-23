@@ -20,8 +20,8 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
         .context("Failed to detect repository. Make sure you're in a git repository")?;
 
     if repo_announcement.relays.is_empty() {
-        println!("Warning: No relays configured for repository");
-        println!("Please run 'gitsmith init' first to configure relays");
+        eprintln!("Warning: No relays configured for repository");
+        eprintln!("Please run 'gitsmith init' first to configure relays");
         return Ok(());
     }
 
@@ -32,7 +32,7 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
         identifier = repo_announcement.identifier
     );
 
-    println!(
+    eprintln!(
         "Fetching pull requests from {count} relay(s)...",
         count = repo_announcement.relays.len()
     );
@@ -48,18 +48,18 @@ pub async fn handle_list_command(args: ListArgs) -> Result<()> {
     } else {
         // Human-readable output
         if prs.is_empty() {
-            println!("No pull requests found");
+            eprintln!("No pull requests found");
         } else {
-            println!("\nFound {count} pull request(s):\n", count = prs.len());
-            println!("{:-<80}", "");
+            eprintln!("\nFound {count} pull request(s):\n", count = prs.len());
+            eprintln!("{:-<80}", "");
 
             for (i, pr) in prs.iter().enumerate() {
-                println!("PR #{num}", num = i + 1);
-                println!(
+                eprintln!("PR #{num}", num = i + 1);
+                eprintln!(
                     "{pr_output}",
                     pr_output = pull_request::format_pull_request(pr)
                 );
-                println!("{:-<80}", "");
+                eprintln!("{:-<80}", "");
             }
         }
     }

@@ -24,27 +24,27 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
     // Get local git state
     let local_state = get_git_state(&args.repo_path, &repo_announcement.identifier)?;
 
-    println!("Repository: {name}", name = repo_announcement.name);
-    println!(
+    eprintln!("Repository: {name}", name = repo_announcement.name);
+    eprintln!(
         "Identifier: {identifier}",
         identifier = repo_announcement.identifier
     );
-    println!();
+    eprintln!();
 
     // Display local state
-    println!("Local Git State:");
-    println!("{:-<40}", "");
+    eprintln!("Local Git State:");
+    eprintln!("{:-<40}", "");
     for (ref_name, commit) in &local_state.refs {
-        println!(
+        eprintln!(
             "{ref_name:<20} {commit}",
             commit = &commit[..8.min(commit.len())]
         );
     }
-    println!();
+    eprintln!();
 
     // If relays are configured, fetch remote state
     if !repo_announcement.relays.is_empty() {
-        println!(
+        eprintln!(
             "Fetching state from {count} relay(s)...",
             count = repo_announcement.relays.len()
         );
@@ -87,8 +87,8 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
         }
 
         if !state_events.is_empty() {
-            println!("\nRemote Nostr State:");
-            println!("{:-<40}", "");
+            eprintln!("\nRemote Nostr State:");
+            eprintln!("{:-<40}", "");
 
             // Get the most recent state event
             state_events.sort_by_key(|e| std::cmp::Reverse(e.created_at));
@@ -100,7 +100,7 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
                 {
                     for (ref_name, commit) in refs_obj {
                         if let Some(commit_str) = commit.as_str() {
-                            println!(
+                            eprintln!(
                                 "{ref_name:<20} {commit}",
                                 commit = &commit_str[..8.min(commit_str.len())]
                             );
@@ -108,7 +108,7 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
                     }
                 }
 
-                println!(
+                eprintln!(
                     "\nLast updated: {timestamp}",
                     timestamp = chrono::DateTime::from_timestamp(
                         latest_state.created_at.as_u64() as i64,
@@ -119,10 +119,10 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
                 );
             }
         } else {
-            println!("\nNo remote state found on Nostr relays");
+            eprintln!("\nNo remote state found on Nostr relays");
         }
     } else {
-        println!("No relays configured. Run 'gitsmith init' to configure relays.");
+        eprintln!("No relays configured. Run 'gitsmith init' to configure relays.");
     }
 
     Ok(())

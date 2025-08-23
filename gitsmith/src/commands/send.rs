@@ -31,8 +31,8 @@ pub struct SendArgs {
 
 pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     // Get account keys
-    print!("Enter password: ");
-    io::stdout().flush()?;
+    eprint!("Enter password: ");
+    io::stderr().flush()?;
     let password = read_password()?;
     let keys = account::get_active_keys(&password)?;
 
@@ -40,22 +40,22 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     let repo_announcement = gitsmith_core::detect_from_git(&args.repo_path)?;
 
     // Generate patches
-    println!("Generating patches from {since}...", since = args.since);
+    eprintln!("Generating patches from {since}...", since = args.since);
     let patches = patches::generate_patches(&args.repo_path, Some(&args.since), None)?;
 
     if patches.is_empty() {
-        println!("No patches to send");
+        eprintln!("No patches to send");
         return Ok(());
     }
 
-    println!("Generated {count} patch(es)", count = patches.len());
+    eprintln!("Generated {count} patch(es)", count = patches.len());
 
     // Get title and description
     let title = if let Some(t) = args.title {
         t
     } else {
-        print!("Enter PR title: ");
-        io::stdout().flush()?;
+        eprint!("Enter PR title: ");
+        io::stderr().flush()?;
         let mut title = String::new();
         io::stdin().read_line(&mut title)?;
         title.trim().to_string()
@@ -64,8 +64,8 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     let description = if let Some(d) = args.description {
         d
     } else {
-        print!("Enter PR description (optional): ");
-        io::stdout().flush()?;
+        eprint!("Enter PR description (optional): ");
+        io::stderr().flush()?;
         let mut desc = String::new();
         io::stdin().read_line(&mut desc)?;
         desc.trim().to_string()
@@ -89,12 +89,12 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         args.in_reply_to,
     )?;
 
-    println!("Created {count} events", count = events.len());
+    eprintln!("Created {count} events", count = events.len());
 
     // Send to relays
     if repo_announcement.relays.is_empty() {
-        println!("Warning: No relays configured for repository");
-        println!("Please run 'gitsmith init' first to configure relays");
+        eprintln!("Warning: No relays configured for repository");
+        eprintln!("Please run 'gitsmith init' first to configure relays");
         return Ok(());
     }
 
@@ -106,7 +106,7 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
 
     client.connect().await;
 
-    println!(
+    eprintln!(
         "Sending PR to {count} relay(s)...",
         count = repo_announcement.relays.len()
     );
@@ -115,7 +115,7 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         client.send_event(&event).await?;
     }
 
-    println!("✅ Pull request sent successfully!");
+    eprintln!("✅ Pull request sent successfully!");
 
     Ok(())
 }
