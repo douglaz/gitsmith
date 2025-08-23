@@ -14,19 +14,35 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        cli::Commands::All { verbose, keep_temp } => run_all_tests(verbose, keep_temp).await,
-        cli::Commands::Account { verbose, keep_temp } => {
-            run_account_tests(verbose, keep_temp).await
-        }
-        cli::Commands::Repo { verbose, keep_temp } => {
-            run_repository_tests(verbose, keep_temp).await
-        }
-        cli::Commands::Pr { verbose, keep_temp } => run_pr_tests(verbose, keep_temp).await,
-        cli::Commands::Sync { verbose, keep_temp } => run_sync_tests(verbose, keep_temp).await,
+        cli::Commands::All {
+            verbose,
+            keep_temp,
+            relays,
+        } => run_all_tests(verbose, keep_temp, &relays).await,
+        cli::Commands::Account {
+            verbose,
+            keep_temp,
+            relays,
+        } => run_account_tests(verbose, keep_temp, &relays).await,
+        cli::Commands::Repo {
+            verbose,
+            keep_temp,
+            relays,
+        } => run_repository_tests(verbose, keep_temp, &relays).await,
+        cli::Commands::Pr {
+            verbose,
+            keep_temp,
+            relays,
+        } => run_pr_tests(verbose, keep_temp, &relays).await,
+        cli::Commands::Sync {
+            verbose,
+            keep_temp,
+            relays,
+        } => run_sync_tests(verbose, keep_temp, &relays).await,
     }
 }
 
-async fn run_all_tests(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn run_all_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "🧪 Running all GitSmith integration tests...".bold());
     println!();
 
@@ -35,28 +51,28 @@ async fn run_all_tests(verbose: bool, keep_temp: bool) -> Result<()> {
 
     // Account tests
     println!("{}", "📝 Account Management Tests".blue().bold());
-    let (passed, failed) = account::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = account::run_tests(verbose, keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
     // Repository tests
     println!();
     println!("{}", "📁 Repository Initialization Tests".blue().bold());
-    let (passed, failed) = repository::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = repository::run_tests(verbose, keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
     // PR tests
     println!();
     println!("{}", "🔀 Pull Request Workflow Tests".blue().bold());
-    let (passed, failed) = pull_request::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = pull_request::run_tests(verbose, keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
     // Sync tests
     println!();
     println!("{}", "🔄 List and Sync Tests".blue().bold());
-    let (passed, failed) = sync::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = sync::run_tests(verbose, keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
@@ -82,33 +98,33 @@ async fn run_all_tests(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn run_account_tests(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn run_account_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "📝 Running Account Management Tests".blue().bold());
-    let (passed, failed) = account::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = account::run_tests(verbose, keep_temp, relays).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
 
-async fn run_repository_tests(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn run_repository_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     println!(
         "{}",
         "📁 Running Repository Initialization Tests".blue().bold()
     );
-    let (passed, failed) = repository::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = repository::run_tests(verbose, keep_temp, relays).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
 
-async fn run_pr_tests(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn run_pr_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "🔀 Running Pull Request Workflow Tests".blue().bold());
-    let (passed, failed) = pull_request::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = pull_request::run_tests(verbose, keep_temp, relays).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
 
-async fn run_sync_tests(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn run_sync_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "🔄 Running List and Sync Tests".blue().bold());
-    let (passed, failed) = sync::run_tests(verbose, keep_temp).await?;
+    let (passed, failed) = sync::run_tests(verbose, keep_temp, relays).await?;
     print_test_summary(passed, failed);
     Ok(())
 }

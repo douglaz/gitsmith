@@ -3,7 +3,7 @@ use chacha20poly1305::{
     ChaCha20Poly1305, Nonce,
     aead::{Aead, AeadCore, KeyInit, OsRng},
 };
-use nostr::{FromBech32, Keys, PublicKey, ToBech32};
+use nostr::{FromBech32, Keys, ToBech32};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};

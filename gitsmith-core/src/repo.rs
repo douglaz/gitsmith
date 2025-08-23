@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use git2::Repository;
-use nostr::{FromBech32, Keys, PublicKey, RelayUrl, ToBech32};
+use nostr::{FromBech32, Keys, RelayUrl, ToBech32};
 use nostr_sdk::Client;
 use std::path::Path;
 use std::time::Duration;

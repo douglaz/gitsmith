@@ -20,6 +20,10 @@ pub enum Commands {
         /// Keep temporary directories after tests
         #[arg(long)]
         keep_temp: bool,
+
+        /// Relay URLs to use for tests (can be specified multiple times)
+        #[arg(long = "relay", default_value = "wss://localhost:8080")]
+        relays: Vec<String>,
     },
 
     /// Run account management tests
@@ -31,6 +35,10 @@ pub enum Commands {
         /// Keep temporary directories after tests
         #[arg(long)]
         keep_temp: bool,
+
+        /// Relay URLs to use for tests (can be specified multiple times)
+        #[arg(long = "relay", default_value = "wss://localhost:8080")]
+        relays: Vec<String>,
     },
 
     /// Run repository initialization tests
@@ -42,6 +50,10 @@ pub enum Commands {
         /// Keep temporary directories after tests
         #[arg(long)]
         keep_temp: bool,
+
+        /// Relay URLs to use for tests (can be specified multiple times)
+        #[arg(long = "relay", default_value = "wss://localhost:8080")]
+        relays: Vec<String>,
     },
 
     /// Run pull request workflow tests
@@ -53,6 +65,10 @@ pub enum Commands {
         /// Keep temporary directories after tests
         #[arg(long)]
         keep_temp: bool,
+
+        /// Relay URLs to use for tests (can be specified multiple times)
+        #[arg(long = "relay", default_value = "wss://localhost:8080")]
+        relays: Vec<String>,
     },
 
     /// Run list and sync tests
@@ -64,5 +80,9 @@ pub enum Commands {
         /// Keep temporary directories after tests
         #[arg(long)]
         keep_temp: bool,
+
+        /// Relay URLs to use for tests (can be specified multiple times)
+        #[arg(long = "relay", default_value = "wss://localhost:8080")]
+        relays: Vec<String>,
     },
 }

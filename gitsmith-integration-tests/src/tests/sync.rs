@@ -3,12 +3,16 @@ use anyhow::Result;
 use colored::*;
 
 /// Run all list and sync tests
-pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)> {
+pub async fn run_tests(
+    verbose: bool,
+    keep_temp: bool,
+    relays: &[String],
+) -> Result<(usize, usize)> {
     let mut passed = 0;
     let mut failed = 0;
 
     // Test listing pull requests
-    match test_list_pull_requests(verbose, keep_temp).await {
+    match test_list_pull_requests(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_list_pull_requests", "✓".green());
             passed += 1;
@@ -20,7 +24,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test listing empty repo
-    match test_list_empty_repo(verbose, keep_temp).await {
+    match test_list_empty_repo(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_list_empty_repo", "✓".green());
             passed += 1;
@@ -32,7 +36,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test syncing repository
-    match test_sync_repository(verbose, keep_temp).await {
+    match test_sync_repository(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_sync_repository", "✓".green());
             passed += 1;
@@ -44,7 +48,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test sync with saved config
-    match test_sync_with_saved_config(verbose, keep_temp).await {
+    match test_sync_with_saved_config(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_sync_with_saved_config", "✓".green());
             passed += 1;
@@ -81,7 +85,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     Ok((passed, failed))
 }
 
-async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_list_pull_requests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_list_prs", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -91,7 +95,8 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
     // Initialize repo
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "list-test",
@@ -99,13 +104,17 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
         "List Test Repo",
         "--description",
         "Testing list functionality",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Send a PR first
     runner.run_success(&[
@@ -156,7 +165,7 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn test_list_empty_repo(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_list_empty_repo(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_list_empty", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -165,7 +174,8 @@ async fn test_list_empty_repo(verbose: bool, keep_temp: bool) -> Result<()> {
     let nsec = TestContext::generate_test_key();
 
     // Initialize repo without sending any PRs
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "empty-list-test",
@@ -173,13 +183,17 @@ async fn test_list_empty_repo(verbose: bool, keep_temp: bool) -> Result<()> {
         "Empty List Test",
         "--description",
         "Testing empty list",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // List PRs (should be empty)
     let output = runner.run_success(&[
@@ -204,7 +218,7 @@ async fn test_list_empty_repo(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn test_sync_repository(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_sync_repository(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_sync_repo", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -214,7 +228,8 @@ async fn test_sync_repository(verbose: bool, keep_temp: bool) -> Result<()> {
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
     // Initialize repo
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "sync-test",
@@ -222,13 +237,17 @@ async fn test_sync_repository(verbose: bool, keep_temp: bool) -> Result<()> {
         "Sync Test Repo",
         "--description",
         "Testing sync",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Sync repository state (doesn't need password)
     let output = runner.run_success(&["sync", "--repo-path", &ctx.repo_path.to_string_lossy()])?;
@@ -247,7 +266,11 @@ async fn test_sync_repository(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn test_sync_with_saved_config(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_sync_with_saved_config(
+    verbose: bool,
+    keep_temp: bool,
+    relays: &[String],
+) -> Result<()> {
     let ctx = TestContext::new("test_sync_saved", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -257,7 +280,8 @@ async fn test_sync_with_saved_config(verbose: bool, keep_temp: bool) -> Result<(
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
     // Initialize repo (saves config)
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "sync-saved-test",
@@ -265,13 +289,17 @@ async fn test_sync_with_saved_config(verbose: bool, keep_temp: bool) -> Result<(
         "Sync Saved Test",
         "--description",
         "Testing sync with saved config",
-        "--relay",
-        "wss://relay.nostr.band",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Add a new commit
     let new_file = ctx.repo_path.join("new.txt");

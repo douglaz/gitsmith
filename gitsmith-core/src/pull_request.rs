@@ -3,7 +3,7 @@ use nostr::{Event, EventId, Filter};
 use nostr_sdk::{Client, RelayPoolNotification};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::time::Duration; // Still needed for timeout in event collection
+use std::time::Duration;
 use strum::{Display, EnumString};
 
 use crate::patches::{KIND_PULL_REQUEST, KIND_PULL_REQUEST_UPDATE};
@@ -56,22 +56,29 @@ pub async fn list_pull_requests(
     // Subscribe to events
     client.subscribe(filter, None).await?;
 
-    // Collect events for a few seconds
+    // Collect events with early exit when found
     let mut events = Vec::new();
-    let timeout = tokio::time::sleep(Duration::from_secs(5));
+    let timeout = tokio::time::sleep(Duration::from_millis(1500)); // Wait up to 1.5 seconds
     tokio::pin!(timeout);
 
     let mut notifications = client.notifications();
+    let mut last_event_time = tokio::time::Instant::now();
 
     loop {
         tokio::select! {
             _ = &mut timeout => break,
             notification = notifications.recv() => {
-                if let Ok(notification) = notification
-                    && let RelayPoolNotification::Event { event, .. } = notification
+                if let Ok(notification) = notification {
+                    if let RelayPoolNotification::Event { event, .. } = notification
                         && (event.kind == KIND_PULL_REQUEST || event.kind == KIND_PULL_REQUEST_UPDATE) {
                             events.push(*event);
+                            last_event_time = tokio::time::Instant::now();
                         }
+                    // If we've found events and 100ms have passed without new ones, exit early
+                    if !events.is_empty() && last_event_time.elapsed() > Duration::from_millis(100) {
+                        break;
+                    }
+                }
             }
         }
     }

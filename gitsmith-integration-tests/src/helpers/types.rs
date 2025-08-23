@@ -16,11 +16,13 @@ pub struct PullRequest {
 
 impl PullRequest {
     /// Find a PR by title in a list
+    #[allow(dead_code)]
     pub fn find_by_title<'a>(prs: &'a [PullRequest], title: &str) -> Option<&'a PullRequest> {
         prs.iter().find(|pr| pr.title == title)
     }
 
     /// Find PRs by author
+    #[allow(dead_code)]
     pub fn find_by_author<'a>(prs: &'a [PullRequest], author: &str) -> Vec<&'a PullRequest> {
         prs.iter().filter(|pr| pr.author == author).collect()
     }

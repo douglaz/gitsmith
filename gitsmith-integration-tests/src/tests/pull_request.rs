@@ -5,12 +5,16 @@ use anyhow::Result;
 use colored::*;
 
 /// Run all pull request workflow tests
-pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)> {
+pub async fn run_tests(
+    verbose: bool,
+    keep_temp: bool,
+    relays: &[String],
+) -> Result<(usize, usize)> {
     let mut passed = 0;
     let mut failed = 0;
 
     // Test sending a simple PR
-    match test_send_pr_simple(verbose, keep_temp).await {
+    match test_send_pr_simple(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_send_pr_simple", "✓".green());
             passed += 1;
@@ -22,7 +26,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test sending PR with title and description
-    match test_send_pr_with_title_description(verbose, keep_temp).await {
+    match test_send_pr_with_title_description(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_send_pr_with_title_description", "✓".green());
             passed += 1;
@@ -34,7 +38,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test sending PR with no commits
-    match test_send_pr_no_commits(verbose, keep_temp).await {
+    match test_send_pr_no_commits(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_send_pr_no_commits", "✓".green());
             passed += 1;
@@ -46,7 +50,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test sending PR with multiple patches
-    match test_send_pr_multiple_patches(verbose, keep_temp).await {
+    match test_send_pr_multiple_patches(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_send_pr_multiple_patches", "✓".green());
             passed += 1;
@@ -58,7 +62,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test full PR workflow
-    match test_full_pr_workflow(verbose, keep_temp).await {
+    match test_full_pr_workflow(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_full_pr_workflow", "✓".green());
             passed += 1;
@@ -70,7 +74,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     }
 
     // Test multiple PRs
-    match test_multiple_prs(verbose, keep_temp).await {
+    match test_multiple_prs(verbose, keep_temp, relays).await {
         Ok(_) => {
             println!("  {} test_multiple_prs", "✓".green());
             passed += 1;
@@ -84,7 +88,7 @@ pub async fn run_tests(verbose: bool, keep_temp: bool) -> Result<(usize, usize)>
     Ok((passed, failed))
 }
 
-async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_send_pr_simple(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_send_pr_simple", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -96,7 +100,8 @@ async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
     // Initialize repo
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "pr-test",
@@ -104,13 +109,17 @@ async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
         "PR Test Repo",
         "--description",
         "Testing PRs",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Send PR
     let output = runner.run_success(&[
@@ -162,7 +171,11 @@ async fn test_send_pr_simple(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_send_pr_with_title_description(
+    verbose: bool,
+    keep_temp: bool,
+    relays: &[String],
+) -> Result<()> {
     let ctx = TestContext::new("test_send_pr_title_desc", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -171,7 +184,8 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
     let nsec = TestContext::generate_test_key();
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "pr-title-test",
@@ -179,13 +193,17 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
         "PR Title Test",
         "--description",
         "Testing with title/desc",
-        "--relay",
-        "wss://relay.nostr.band",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Send PR with specific title and description
     let output = runner.run_success(&[
@@ -236,7 +254,7 @@ async fn test_send_pr_with_title_description(verbose: bool, keep_temp: bool) -> 
     Ok(())
 }
 
-async fn test_send_pr_no_commits(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_send_pr_no_commits(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_send_pr_no_commits", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -246,7 +264,8 @@ async fn test_send_pr_no_commits(verbose: bool, keep_temp: bool) -> Result<()> {
     let nsec = TestContext::generate_test_key();
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "pr-no-commits",
@@ -254,13 +273,17 @@ async fn test_send_pr_no_commits(verbose: bool, keep_temp: bool) -> Result<()> {
         "No Commits Test",
         "--description",
         "Testing with no commits to send",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Try to send PR from HEAD~1 (should fail as there's only 1 commit)
     let output = runner.run_failure(&[
@@ -285,7 +308,11 @@ async fn test_send_pr_no_commits(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_send_pr_multiple_patches(
+    verbose: bool,
+    keep_temp: bool,
+    relays: &[String],
+) -> Result<()> {
     let ctx = TestContext::new("test_send_pr_multiple", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -295,7 +322,8 @@ async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result
     let nsec = TestContext::generate_test_key();
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "pr-multiple",
@@ -303,13 +331,17 @@ async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result
         "Multiple Patches Test",
         "--description",
         "Testing with multiple patches",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Send PR with 5 patches
     let output = runner.run_success(&[
@@ -355,7 +387,7 @@ async fn test_send_pr_multiple_patches(verbose: bool, keep_temp: bool) -> Result
     Ok(())
 }
 
-async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_full_pr_workflow(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_full_pr_workflow", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -366,7 +398,8 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
     // Initialize repo
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "workflow-test",
@@ -374,13 +407,17 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
         "Workflow Test Repo",
         "--description",
         "Testing complete PR workflow",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Step 1: Verify empty list initially
     let output = runner.run_success(&[
@@ -468,7 +505,7 @@ async fn test_full_pr_workflow(verbose: bool, keep_temp: bool) -> Result<()> {
     Ok(())
 }
 
-async fn test_multiple_prs(verbose: bool, keep_temp: bool) -> Result<()> {
+async fn test_multiple_prs(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
     let ctx = TestContext::new("test_multiple_prs", verbose, keep_temp)?;
     let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
 
@@ -478,7 +515,8 @@ async fn test_multiple_prs(verbose: bool, keep_temp: bool) -> Result<()> {
     let nsec = TestContext::generate_test_key();
     runner.run_success(&["account", "login", "--nsec", &nsec, "--password", "test"])?;
 
-    runner.run_success(&[
+    // Build init command with dynamic relays
+    let mut init_args = vec![
         "init",
         "--identifier",
         "multi-pr-test",
@@ -486,13 +524,17 @@ async fn test_multiple_prs(verbose: bool, keep_temp: bool) -> Result<()> {
         "Multiple PRs Test",
         "--description",
         "Testing multiple simultaneous PRs",
-        "--relay",
-        "wss://relay.damus.io",
-        "--nsec",
-        &nsec,
-        "--repo-path",
-        &ctx.repo_path.to_string_lossy(),
-    ])?;
+    ];
+    for relay in relays {
+        init_args.push("--relay");
+        init_args.push(relay);
+    }
+    init_args.push("--nsec");
+    let repo_path = ctx.repo_path.to_string_lossy();
+    init_args.push(&nsec);
+    init_args.push("--repo-path");
+    init_args.push(&repo_path);
+    runner.run_success(&init_args)?;
 
     // Send multiple PRs
     let pr_configs = vec![
