@@ -58,7 +58,7 @@ pub async fn handle_sync_command(args: SyncArgs) -> Result<()> {
         client.connect().await;
 
         // Wait for connections to establish
-        gitsmith_core::ensure_relay_connected(&client, 5)
+        gitsmith_core::ensure_relay_connected(5)
             .await
             .context("Failed to connect to relays")?;
 

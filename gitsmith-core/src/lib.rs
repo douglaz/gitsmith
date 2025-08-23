@@ -6,7 +6,6 @@ pub mod repo;
 pub mod types;
 
 use anyhow::Result;
-use nostr_sdk::Client;
 use std::time::Duration;
 
 // Re-export main types and functions for convenience
@@ -19,12 +18,11 @@ pub use types::{GitState, PublishConfig, PublishResult, RepoAnnouncement};
 
 /// Wait for relay connections to be established with timeout
 ///
-/// This function ensures at least one relay is connected before proceeding.
-/// It will wait up to `timeout_secs` seconds for connections to establish.
+/// This function provides a smart delay to allow relay connections to establish.
+/// It waits a minimum of 500ms (typical connection time) up to `timeout_secs`.
 ///
 /// Returns Ok(()) when ready to proceed with relay operations.
-pub async fn ensure_relay_connected(client: &Client, timeout_secs: u64) -> Result<()> {
-    let _ = client; // Acknowledge the client parameter
+pub async fn ensure_relay_connected(timeout_secs: u64) -> Result<()> {
     let start = tokio::time::Instant::now();
     let timeout = Duration::from_secs(timeout_secs);
 

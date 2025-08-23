@@ -36,7 +36,7 @@ pub async fn list_pull_requests(
     client.connect().await;
 
     // Wait for connections to establish
-    crate::ensure_relay_connected(&client, 5)
+    crate::ensure_relay_connected(5)
         .await
         .context("Failed to connect to relays")?;
 
