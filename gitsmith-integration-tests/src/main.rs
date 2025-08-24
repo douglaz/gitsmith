@@ -1,44 +1,122 @@
 use anyhow::Result;
 use clap::Parser;
 use colored::*;
+use tracing::info;
 
 mod cli;
 mod helpers;
+mod relay;
 mod tests;
 
 use cli::Cli;
+use relay::RelayManager;
 use tests::{account, pull_request, repository, sync};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    // Initialize tracing subscriber - output to stderr
+    let filter = if cli.verbose {
+        "gitsmith_integration_tests=debug,gitsmith=debug"
+    } else {
+        "gitsmith_integration_tests=info,gitsmith=info"
+    };
+
+    tracing_subscriber::fmt()
+        .with_env_filter(filter)
+        .with_writer(std::io::stderr)
+        .with_target(false)
+        .init();
+
+    info!("Starting GitSmith integration tests");
+
+    // Start relay if needed and build initial relay list
+    let (_relay_manager, base_relay_list) = if !cli.skip_relay_setup {
+        println!("{}", "🔌 Setting up test relay...".cyan());
+        info!("Starting local relay manager");
+        let manager = RelayManager::start(cli.verbose).await?;
+        let url = manager.get_url();
+        info!("Relay ready at {}", url);
+        println!("  ✓ Relay started at {}", url.green());
+        (Some(manager), vec![url])
+    } else {
+        info!("Skipping relay setup (--skip-relay-setup flag)");
+        (None, Vec::new())
+    };
+
+    let verbose = cli.verbose;
+
     match cli.command {
         cli::Commands::All {
-            verbose,
             keep_temp,
-            relays,
-        } => run_all_tests(verbose, keep_temp, &relays).await,
+            mut relays,
+        } => {
+            // Build final relay list
+            let mut relay_list = base_relay_list;
+            relay_list.append(&mut relays);
+
+            // Ensure we have at least one relay
+            if relay_list.is_empty() {
+                anyhow::bail!(
+                    "No relay URLs available. Either start the local relay or provide --relay URLs"
+                );
+            }
+
+            run_all_tests(verbose, keep_temp, &relay_list).await
+        }
         cli::Commands::Account {
-            verbose,
             keep_temp,
-            relays,
-        } => run_account_tests(verbose, keep_temp, &relays).await,
+            mut relays,
+        } => {
+            let mut relay_list = base_relay_list;
+            relay_list.append(&mut relays);
+            if relay_list.is_empty() {
+                anyhow::bail!(
+                    "No relay URLs available. Either start the local relay or provide --relay URLs"
+                );
+            }
+            run_account_tests(verbose, keep_temp, &relay_list).await
+        }
         cli::Commands::Repo {
-            verbose,
             keep_temp,
-            relays,
-        } => run_repository_tests(verbose, keep_temp, &relays).await,
+            mut relays,
+        } => {
+            let mut relay_list = base_relay_list;
+            relay_list.append(&mut relays);
+            if relay_list.is_empty() {
+                anyhow::bail!(
+                    "No relay URLs available. Either start the local relay or provide --relay URLs"
+                );
+            }
+            run_repository_tests(verbose, keep_temp, &relay_list).await
+        }
         cli::Commands::Pr {
-            verbose,
             keep_temp,
-            relays,
-        } => run_pr_tests(verbose, keep_temp, &relays).await,
+            mut relays,
+        } => {
+            let mut relay_list = base_relay_list;
+            relay_list.append(&mut relays);
+            if relay_list.is_empty() {
+                anyhow::bail!(
+                    "No relay URLs available. Either start the local relay or provide --relay URLs"
+                );
+            }
+            run_pr_tests(verbose, keep_temp, &relay_list).await
+        }
         cli::Commands::Sync {
-            verbose,
             keep_temp,
-            relays,
-        } => run_sync_tests(verbose, keep_temp, &relays).await,
+            mut relays,
+        } => {
+            let mut relay_list = base_relay_list;
+            relay_list.append(&mut relays);
+            if relay_list.is_empty() {
+                anyhow::bail!(
+                    "No relay URLs available. Either start the local relay or provide --relay URLs"
+                );
+            }
+            run_sync_tests(verbose, keep_temp, &relay_list).await
+        }
     }
 }
 
