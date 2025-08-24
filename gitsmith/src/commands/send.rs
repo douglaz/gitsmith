@@ -3,7 +3,6 @@ use clap::Args;
 use gitsmith_core::{account, patches};
 use nostr_sdk::Client;
 use rpassword::read_password;
-use std::collections::{HashMap, HashSet};
 use std::io::{self, Write};
 use std::path::PathBuf;
 use tracing::{debug, info, warn};
@@ -166,7 +165,7 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
             event.id
         );
 
-        let output = client.send_event(&event).await?;
+        let output = client.send_event(event).await?;
 
         // Track successes
         for relay in output.success {
