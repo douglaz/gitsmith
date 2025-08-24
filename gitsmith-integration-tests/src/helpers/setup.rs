@@ -9,14 +9,13 @@ pub struct TestContext {
     pub temp_dir: TempDir,
     pub repo_path: PathBuf,
     pub home_dir: PathBuf,
-    pub verbose: bool,
     pub keep_temp: bool,
     pub _test_name: String,
 }
 
 impl TestContext {
     /// Create a new test context with temporary directories
-    pub fn new(test_name: &str, verbose: bool, keep_temp: bool) -> Result<Self> {
+    pub fn new(test_name: &str, keep_temp: bool) -> Result<Self> {
         let temp_dir = if keep_temp {
             TempDir::new_in("/tmp")?
         } else {
@@ -30,15 +29,12 @@ impl TestContext {
         std::fs::create_dir_all(&repo_path)?;
         std::fs::create_dir_all(&home_dir)?;
 
-        if verbose {
-            println!("  📂 Test directory: {}", temp_dir.path().display());
-        }
+        println!("  📂 Test directory: {}", temp_dir.path().display());
 
         Ok(Self {
             temp_dir,
             repo_path,
             home_dir,
-            verbose,
             keep_temp,
             _test_name: test_name.to_string(),
         })
@@ -88,9 +84,7 @@ impl TestContext {
                 .output()?;
         }
 
-        if self.verbose {
-            println!("    ✓ Created git repo with {} commits", num_commits);
-        }
+        println!("    ✓ Created git repo with {} commits", num_commits);
 
         Ok(())
     }
@@ -118,9 +112,7 @@ impl TestContext {
         let config_dir = self.home_dir.join(".config/gitsmith");
         std::fs::create_dir_all(&config_dir)?;
 
-        if self.verbose {
-            println!("    ✓ Created test account with key");
-        }
+        println!("    ✓ Created test account with key");
 
         Ok(nsec)
     }

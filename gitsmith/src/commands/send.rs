@@ -5,6 +5,7 @@ use nostr_sdk::Client;
 use rpassword::read_password;
 use std::io::{self, Write};
 use std::path::PathBuf;
+use tracing::{debug, info, warn};
 
 #[derive(Args)]
 pub struct SendArgs {
@@ -34,7 +35,13 @@ pub struct SendArgs {
 }
 
 pub async fn handle_send_command(args: SendArgs) -> Result<()> {
+    info!(
+        "Starting send command for repository: {}",
+        args.repo_path.display()
+    );
+
     // Get account keys
+    debug!("Getting account keys");
     let password = if let Some(pwd) = args.password {
         pwd
     } else {
@@ -43,15 +50,27 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         read_password()?
     };
     let keys = account::get_active_keys(&password)?;
+    info!("Account keys loaded successfully");
 
     // Get repository info
+    debug!(
+        "Detecting repository info from: {}",
+        args.repo_path.display()
+    );
     let repo_announcement = gitsmith_core::detect_from_git(&args.repo_path)?;
+    info!(
+        "Repository detected: {} ({})",
+        repo_announcement.name, repo_announcement.identifier
+    );
 
     // Generate patches
     eprintln!("Generating patches from {since}...", since = args.since);
+    debug!("Generating patches from commit range: {}", args.since);
     let patches = patches::generate_patches(&args.repo_path, Some(&args.since), None)?;
+    info!("Generated {} patch(es) from commits", patches.len());
 
     if patches.is_empty() {
+        warn!("No patches to send - no commits in range {}", args.since);
         eprintln!("No patches to send");
         return Ok(());
     }
@@ -85,8 +104,10 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         pubkey = keys.public_key(),
         identifier = repo_announcement.identifier
     );
+    debug!("Repository coordinate: {}", repo_coordinate);
 
     // Create PR events
+    debug!("Creating PR events with title: '{}'", title);
     let events = patches::create_pull_request_event(
         &keys,
         &repo_coordinate,
@@ -97,21 +118,27 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         args.in_reply_to,
     )?;
 
+    info!("Created {} events (patch events + PR event)", events.len());
     eprintln!("Created {count} events", count = events.len());
 
     // Send to relays
     if repo_announcement.relays.is_empty() {
+        warn!("No relays configured for repository");
         eprintln!("Warning: No relays configured for repository");
         eprintln!("Please run 'gitsmith init' first to configure relays");
         return Ok(());
     }
 
+    debug!("Configured relays: {:?}", repo_announcement.relays);
+
     let client = Client::new(keys.clone());
 
     for relay_url in &repo_announcement.relays {
+        debug!("Adding relay: {}", relay_url);
         client.add_relay(relay_url).await?;
     }
 
+    info!("Connecting to {} relay(s)", repo_announcement.relays.len());
     client.connect().await;
 
     eprintln!(
@@ -119,10 +146,29 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         count = repo_announcement.relays.len()
     );
 
-    for event in events {
-        client.send_event(&event).await?;
+    // Send events with a small delay between them to avoid overwhelming public relays
+    // This is especially important for multi-patch PRs which create multiple events
+    for (i, event) in events.iter().enumerate() {
+        if i > 0 {
+            debug!("Waiting 500ms before sending next event to avoid overwhelming relays");
+            // Add a 500ms delay between events to give relays time to process
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+        }
+        debug!(
+            "Sending event {}/{}: kind={}, id={}",
+            i + 1,
+            events.len(),
+            event.kind,
+            event.id
+        );
+        client.send_event(event).await?;
+        info!("Event {}/{} sent successfully", i + 1, events.len());
     }
 
+    info!(
+        "All events sent successfully to {} relay(s)",
+        repo_announcement.relays.len()
+    );
     eprintln!("✅ Pull request sent successfully!");
 
     Ok(())

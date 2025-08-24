@@ -44,16 +44,12 @@ fn build_init_args<'a>(
 }
 
 /// Run all repository initialization tests
-pub async fn run_tests(
-    verbose: bool,
-    keep_temp: bool,
-    relays: &[String],
-) -> Result<(usize, usize)> {
+pub async fn run_tests(keep_temp: bool, relays: &[String]) -> Result<(usize, usize)> {
     let mut passed = 0;
     let mut failed = 0;
 
     // Test initializing a new repository
-    match test_init_new_repo(verbose, keep_temp, relays).await {
+    match test_init_new_repo(keep_temp, relays).await {
         Ok(_) => {
             println!("  {check} test_init_new_repo", check = "✓".green());
             passed += 1;
@@ -69,7 +65,7 @@ pub async fn run_tests(
     }
 
     // Test initializing an existing repository
-    match test_init_existing_repo(verbose, keep_temp, relays).await {
+    match test_init_existing_repo(keep_temp, relays).await {
         Ok(_) => {
             println!("  {check} test_init_existing_repo", check = "✓".green());
             passed += 1;
@@ -85,7 +81,7 @@ pub async fn run_tests(
     }
 
     // Test config persistence
-    match test_init_config_persistence(verbose, keep_temp, relays).await {
+    match test_init_config_persistence(keep_temp, relays).await {
         Ok(_) => {
             println!(
                 "  {check} test_init_config_persistence",
@@ -104,7 +100,7 @@ pub async fn run_tests(
     }
 
     // Test detect from git
-    match test_detect_from_git(verbose, keep_temp, relays).await {
+    match test_detect_from_git(keep_temp, relays).await {
         Ok(_) => {
             println!("  {check} test_detect_from_git", check = "✓".green());
             passed += 1;
@@ -122,9 +118,9 @@ pub async fn run_tests(
     Ok((passed, failed))
 }
 
-async fn test_init_new_repo(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
-    let ctx = TestContext::new("test_init_new_repo", verbose, keep_temp)?;
-    let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
+async fn test_init_new_repo(keep_temp: bool, relays: &[String]) -> Result<()> {
+    let ctx = TestContext::new("test_init_new_repo", keep_temp)?;
+    let runner = GitsmithRunner::new(&ctx.home_dir);
 
     // Setup git repo
     ctx.setup_git_repo(3)?;
@@ -143,7 +139,7 @@ async fn test_init_new_repo(verbose: bool, keep_temp: bool, relays: &[String]) -
         &repo_path,
         Some("json"),
     );
-    let output = runner.run_success(&args)?;
+    let output = runner.run_success(&args).await?;
 
     // Verify JSON output
     assert_contains(&output.stdout, "\"event_id\"", "Should output event ID")?;
@@ -157,9 +153,9 @@ async fn test_init_new_repo(verbose: bool, keep_temp: bool, relays: &[String]) -
     Ok(())
 }
 
-async fn test_init_existing_repo(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
-    let ctx = TestContext::new("test_init_existing_repo", verbose, keep_temp)?;
-    let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
+async fn test_init_existing_repo(keep_temp: bool, relays: &[String]) -> Result<()> {
+    let ctx = TestContext::new("test_init_existing_repo", keep_temp)?;
+    let runner = GitsmithRunner::new(&ctx.home_dir);
 
     // Setup existing git repo with remote
     ctx.setup_git_repo(5)?;
@@ -188,7 +184,7 @@ async fn test_init_existing_repo(verbose: bool, keep_temp: bool, relays: &[Strin
         &repo_path,
         Some("minimal"),
     );
-    let output = runner.run_success(&args)?;
+    let output = runner.run_success(&args).await?;
 
     // Should output just the nostr URL
     assert_contains(&output.stdout, "nostr://", "Should output nostr URL")?;
@@ -196,13 +192,9 @@ async fn test_init_existing_repo(verbose: bool, keep_temp: bool, relays: &[Strin
     Ok(())
 }
 
-async fn test_init_config_persistence(
-    verbose: bool,
-    keep_temp: bool,
-    relays: &[String],
-) -> Result<()> {
-    let ctx = TestContext::new("test_init_config_persistence", verbose, keep_temp)?;
-    let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
+async fn test_init_config_persistence(keep_temp: bool, relays: &[String]) -> Result<()> {
+    let ctx = TestContext::new("test_init_config_persistence", keep_temp)?;
+    let runner = GitsmithRunner::new(&ctx.home_dir);
 
     ctx.setup_git_repo(2)?;
 
@@ -221,7 +213,7 @@ async fn test_init_config_persistence(
         &repo_path,
         None,
     );
-    runner.run_success(&args)?;
+    runner.run_success(&args).await?;
 
     // Check git config was updated
     let git_config_path = ctx.repo_path.join(".git/config");
@@ -238,9 +230,9 @@ async fn test_init_config_persistence(
     Ok(())
 }
 
-async fn test_detect_from_git(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
-    let ctx = TestContext::new("test_detect_from_git", verbose, keep_temp)?;
-    let runner = GitsmithRunner::new(&ctx.home_dir, verbose);
+async fn test_detect_from_git(keep_temp: bool, relays: &[String]) -> Result<()> {
+    let ctx = TestContext::new("test_detect_from_git", keep_temp)?;
+    let runner = GitsmithRunner::new(&ctx.home_dir);
 
     ctx.setup_git_repo(2)?;
 
@@ -259,11 +251,12 @@ async fn test_detect_from_git(verbose: bool, keep_temp: bool, relays: &[String])
         &repo_path,
         None,
     );
-    runner.run_success(&args)?;
+    runner.run_success(&args).await?;
 
     // Generate announcement from existing repo (should detect saved config)
-    let output =
-        runner.run_success(&["generate", "--repo-path", &ctx.repo_path.to_string_lossy()])?;
+    let output = runner
+        .run_success(&["generate", "--repo-path", &ctx.repo_path.to_string_lossy()])
+        .await?;
 
     // Verify it detected the saved configuration
     assert_contains(

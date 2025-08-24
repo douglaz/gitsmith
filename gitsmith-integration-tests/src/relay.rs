@@ -18,16 +18,14 @@ pub struct RelayManager {
 
 impl RelayManager {
     /// Start a new relay instance or use existing one if available
-    pub async fn start(verbose: bool) -> Result<Self> {
+    pub async fn start() -> Result<Self> {
         let port = 7878;
         debug!("Checking if relay is already running on port {}", port);
 
         // Check if relay is already running
         if Self::is_port_open(port).await {
             info!("Found existing relay on port {}", port);
-            if verbose {
-                println!("  ℹ️  Using existing relay on port {port}");
-            }
+            println!("  ℹ️  Using existing relay on port {port}");
             return Ok(Self {
                 process: None,
                 port,
@@ -57,13 +55,12 @@ impl RelayManager {
         };
         debug!("Using config file: {:?}", config_path);
 
-        if verbose || std::env::var("CI").is_ok() {
-            println!("  🚀 Starting nostr-rs-relay on port {port}...");
-            println!("     Config: {}", config_path.display());
-            println!("     Data: {}", data_dir.path().display());
-            if std::env::var("CI").is_ok() {
-                println!("     Running in CI environment - using extended timeout");
-            }
+        // Always show relay setup information
+        println!("  🚀 Starting nostr-rs-relay on port {port}...");
+        println!("     Config: {}", config_path.display());
+        println!("     Data: {}", data_dir.path().display());
+        if std::env::var("CI").is_ok() {
+            println!("     Running in CI environment - using extended timeout");
         }
 
         // Create database directory inside temp dir
@@ -94,13 +91,11 @@ impl RelayManager {
         info!("Started nostr-rs-relay process");
 
         // Wait for relay to be ready
-        if verbose {
-            print!("     Waiting for relay to be ready");
-        }
+        print!("     Waiting for relay to be ready");
         debug!("Waiting for relay to be ready on port {}", port);
 
         // Try to wait for ready, capturing stderr on failure
-        match Self::wait_for_ready(port, verbose).await {
+        match Self::wait_for_ready(port).await {
             Ok(()) => {
                 // Success - consume stderr to avoid broken pipe
                 if let Some(stderr) = process.stderr.take() {
@@ -129,9 +124,7 @@ impl RelayManager {
             }
         }
         info!("Relay is ready and accepting connections");
-        if verbose {
-            println!(" ✓");
-        }
+        println!(" ✓");
 
         Ok(Self {
             process: Some(process),
@@ -149,7 +142,7 @@ impl RelayManager {
     }
 
     /// Wait for the relay to be ready to accept connections
-    async fn wait_for_ready(port: u16, verbose: bool) -> Result<()> {
+    async fn wait_for_ready(port: u16) -> Result<()> {
         // CI environments may be slower, so use a longer timeout
         let timeout_seconds = if std::env::var("CI").is_ok() { 60 } else { 30 };
 
@@ -157,7 +150,7 @@ impl RelayManager {
             if Self::is_port_open(port).await {
                 return Ok(());
             }
-            if verbose && i > 0 && i % 5 == 0 {
+            if i > 0 && i % 5 == 0 {
                 print!(".");
             }
             // Use exponential backoff for the first few attempts
