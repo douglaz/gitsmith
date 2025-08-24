@@ -48,6 +48,11 @@ jobs:
     - name: Run tests
       run: nix develop -c cargo test
     
+    - name: Run integration tests
+      run: |
+        echo "Running integration tests with automatic relay setup..."
+        nix develop -c cargo run --bin gitsmith-integration-tests -- all
+    
     - name: Build with nix (static musl binary)
       run: nix build
     
