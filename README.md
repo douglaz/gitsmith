@@ -1,4 +1,4 @@
-# GitSmith
+# gitsmith
 
 🔨 **Forge your git repositories on Nostr** - A non-interactive CLI tool for publishing git repositories to the Nostr protocol, implementing NIP-34.
 
@@ -7,7 +7,7 @@
 ### Option 1: Using the Auto-installer Script
 
 ```bash
-# Download and run GitSmith directly
+# Download and run gitsmith directly
 curl -sSL https://raw.githubusercontent.com/douglaz/gitsmith/master/gitsmith.sh | bash -s -- --help
 
 # Or download the script for repeated use
@@ -54,7 +54,7 @@ nix build
 
 ## Development with Nix
 
-GitSmith uses Nix for reproducible development environments and builds:
+gitsmith uses Nix for reproducible development environments and builds:
 
 ```bash
 # Enter development shell with all tools
@@ -163,7 +163,7 @@ rm ~/.local/bin/.gitsmith.version
 
 ## Architecture
 
-GitSmith uses a clean workspace structure:
+gitsmith uses a clean workspace structure:
 
 - **`gitsmith-core`**: Core library with all Nostr/git logic
 - **`gitsmith`**: CLI application using the core library

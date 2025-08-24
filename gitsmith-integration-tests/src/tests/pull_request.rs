@@ -1,5 +1,5 @@
 use crate::helpers::{GitsmithRunner, TestContext, assert_pr_details, assert_pr_exists};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use colored::*;
 use tracing::{debug, info};
 
@@ -204,6 +204,17 @@ async fn test_send_pr_simple(keep_temp: bool, relays: &[String]) -> Result<()> {
         println!("    ✓ Verified PR exists with correct details");
     }
 
+    // Verify PR event exists on all relays
+    // The 'id' field in PullRequest is the event ID
+    let event_id = nostr_sdk::EventId::from_hex(&pr.id)?;
+    crate::helpers::verify_event_on_all_relays(event_id, relays, 10)
+        .await
+        .with_context(|| "Failed to verify PR event on all relays")?;
+    println!(
+        "    ✓ Verified PR event exists on all {} relays",
+        relays.len()
+    );
+
     Ok(())
 }
 
@@ -285,6 +296,16 @@ async fn test_send_pr_with_title_description(keep_temp: bool, relays: &[String])
     {
         println!("    ✓ Verified PR with custom title/description");
     }
+
+    // Verify PR event exists on all relays
+    let event_id = nostr_sdk::EventId::from_hex(&pr.id)?;
+    crate::helpers::verify_event_on_all_relays(event_id, relays, 10)
+        .await
+        .with_context(|| "Failed to verify PR event on all relays")?;
+    println!(
+        "    ✓ Verified PR event exists on all {} relays",
+        relays.len()
+    );
 
     Ok(())
 }
@@ -425,6 +446,16 @@ async fn test_send_pr_multiple_patches(keep_temp: bool, relays: &[String]) -> Re
         println!("    ✓ Verified PR with 5 patches");
     }
 
+    // Verify PR event exists on all relays
+    let event_id = nostr_sdk::EventId::from_hex(&pr.id)?;
+    crate::helpers::verify_event_on_all_relays(event_id, relays, 10)
+        .await
+        .with_context(|| "Failed to verify PR event on all relays")?;
+    println!(
+        "    ✓ Verified PR event exists on all {} relays",
+        relays.len()
+    );
+
     info!("test_send_pr_multiple_patches completed successfully");
     Ok(())
 }
@@ -555,6 +586,18 @@ async fn test_full_pr_workflow(keep_temp: bool, relays: &[String]) -> Result<()>
         println!("    ✓ Created and verified 2 PRs");
     }
 
+    // Verify both PR events exist on all relays
+    for pr in &prs {
+        let event_id = nostr_sdk::EventId::from_hex(&pr.id)?;
+        crate::helpers::verify_event_on_all_relays(event_id, relays, 10)
+            .await
+            .with_context(|| format!("Failed to verify PR '{}' on all relays", pr.title))?;
+    }
+    println!(
+        "    ✓ Verified all PR events exist on all {} relays",
+        relays.len()
+    );
+
     Ok(())
 }
 
@@ -649,6 +692,18 @@ async fn test_multiple_prs(keep_temp: bool, relays: &[String]) -> Result<()> {
         println!("    ✓ Successfully created and verified 3 PRs");
         println!("    ✓ All PRs have unique IDs");
     }
+
+    // Verify all PR events exist on all relays
+    for pr in &prs {
+        let event_id = nostr_sdk::EventId::from_hex(&pr.id)?;
+        crate::helpers::verify_event_on_all_relays(event_id, relays, 10)
+            .await
+            .with_context(|| format!("Failed to verify PR '{}' on all relays", pr.title))?;
+    }
+    println!(
+        "    ✓ Verified all 3 PR events exist on all {} relays",
+        relays.len()
+    );
 
     Ok(())
 }

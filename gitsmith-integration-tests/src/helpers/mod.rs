@@ -1,9 +1,11 @@
 pub mod assertions;
+pub mod relay_verification;
 pub mod runner;
 pub mod setup;
 pub mod types;
 
 pub use assertions::*;
+pub use relay_verification::*;
 pub use runner::*;
 pub use setup::*;
 pub use types::*;

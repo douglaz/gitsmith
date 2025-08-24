@@ -33,8 +33,8 @@ pub async fn announce_repository(
     // Connect to relays
     client.connect().await;
 
-    // Send event
-    client.send_event(&event).await?;
+    // Send event and track relay responses
+    let output = client.send_event(&event).await?;
 
     // Wait a bit for propagation if requested
     if config.wait_for_send {
@@ -54,11 +54,24 @@ pub async fn announce_repository(
         npub, first_relay, announcement.identifier
     );
 
+    // Extract success and failure information from SendEventOutput
+    let successes: Vec<String> = output
+        .success
+        .into_iter()
+        .map(|url| url.to_string())
+        .collect();
+
+    let failures: Vec<(String, String)> = output
+        .failed
+        .into_iter()
+        .map(|(url, msg)| (url.to_string(), msg))
+        .collect();
+
     Ok(PublishResult {
         event_id,
         nostr_url,
-        successes: announcement.relays.clone(),
-        failures: vec![],
+        successes,
+        failures,
     })
 }
 
