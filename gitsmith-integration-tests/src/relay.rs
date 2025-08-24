@@ -17,6 +17,7 @@ pub enum RelayType {
 pub struct RelayManager {
     process: Option<Child>,
     port: u16,
+    #[allow(dead_code)]
     relay_type: RelayType,
     #[allow(dead_code)]
     data_dir: Option<tempfile::TempDir>,
@@ -26,6 +27,7 @@ pub struct RelayManager {
 
 impl RelayManager {
     /// Start a single relay (backward compatibility)
+    #[allow(dead_code)]
     pub async fn start() -> Result<Self> {
         Self::start_nostr_rs_relay(7878).await
     }
