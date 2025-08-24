@@ -1,5 +1,5 @@
 use crate::helpers::{GitsmithRunner, TestContext, assert_contains, assert_file_contains};
-use anyhow::Result;
+use anyhow::{Context, Result};
 use colored::*;
 use std::process::Command;
 
@@ -149,6 +149,20 @@ async fn test_init_new_repo(keep_temp: bool, relays: &[String]) -> Result<()> {
         "\"successes\"",
         "Should show successful relays",
     )?;
+
+    // Parse JSON output to get event details
+    let json_output: serde_json::Value = serde_json::from_str(&output.stdout)?;
+    let event_id_str = json_output["event_id"]
+        .as_str()
+        .ok_or_else(|| anyhow::anyhow!("Missing event_id in output"))?;
+
+    // Parse event ID
+    let event_id = nostr_sdk::EventId::from_hex(event_id_str)?;
+
+    // Verify event exists on all relays
+    crate::helpers::verify_event_on_all_relays(event_id, relays, 10)
+        .await
+        .with_context(|| "Failed to verify repository announcement on all relays")?;
 
     Ok(())
 }

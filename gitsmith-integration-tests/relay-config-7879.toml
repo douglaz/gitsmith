@@ -1,0 +1,25 @@
+# Nostr-rs-relay configuration for second instance (port 7879)
+
+[info]
+name = "gitsmith-test-relay-2"
+description = "Test relay for gitsmith integration tests (instance 2)"
+
+[database]
+data_directory = "./test-relay-data-7879"
+engine = "sqlite"
+
+[network]
+address = "127.0.0.1"
+port = 7879
+
+[limits]
+messages_per_sec = 100
+max_event_bytes = 65536
+max_ws_frame_bytes = 65536
+subscription_limit = 100
+
+[authorization]
+pubkey_whitelist = []
+
+[logging]
+level = "warn"

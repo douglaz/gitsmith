@@ -16,34 +16,34 @@ use tests::{account, public_relay, pull_request, repository, sync};
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // Initialize tracing subscriber - output to stderr
-    let filter = if true {
-        "gitsmith_integration_tests=debug,gitsmith=debug"
-    } else {
-        "gitsmith_integration_tests=info,gitsmith=info"
-    };
-
     tracing_subscriber::fmt()
-        .with_env_filter(filter)
         .with_writer(std::io::stderr)
         .with_target(false)
         .init();
 
-    info!("Starting GitSmith integration tests");
+    info!("Starting gitsmith integration tests");
 
-    // Start relay if needed and build initial relay list
-    let (_relay_manager, base_relay_list) = if !cli.skip_relay_setup {
-        println!("{}", "🔌 Setting up test relay...".cyan());
-        info!("Starting local relay manager");
-        let manager = RelayManager::start().await?;
-        let url = manager.get_url();
-        info!("Relay ready at {}", url);
-        println!("  ✓ Relay started at {}", url.green());
-        (Some(manager), vec![url])
+    // Start relays if needed and build initial relay list
+    let managers = if !cli.skip_relay_setup {
+        println!("{}", "🔌 Setting up test relays...".cyan());
+        info!("Starting local relay managers");
+        let relay_managers = RelayManager::start_multiple().await?;
+        for manager in &relay_managers {
+            let url = manager.get_url();
+            info!("Relay ready at {}", url);
+            println!("  ✓ Relay started at {}", url.green());
+        }
+        relay_managers
     } else {
         info!("Skipping relay setup (--skip-relay-setup flag)");
-        (None, Vec::new())
+        Vec::new()
     };
+    let mut relay_list = Vec::new();
+
+    for manager in &managers {
+        let url = manager.get_url();
+        relay_list.push(url);
+    }
 
     match cli.command {
         cli::Commands::All {
@@ -51,7 +51,6 @@ async fn main() -> Result<()> {
             mut relays,
         } => {
             // Build final relay list
-            let mut relay_list = base_relay_list;
             relay_list.append(&mut relays);
 
             // Ensure we have at least one relay
@@ -67,7 +66,6 @@ async fn main() -> Result<()> {
             keep_temp,
             mut relays,
         } => {
-            let mut relay_list = base_relay_list;
             relay_list.append(&mut relays);
             if relay_list.is_empty() {
                 anyhow::bail!(
@@ -80,7 +78,6 @@ async fn main() -> Result<()> {
             keep_temp,
             mut relays,
         } => {
-            let mut relay_list = base_relay_list;
             relay_list.append(&mut relays);
             if relay_list.is_empty() {
                 anyhow::bail!(
@@ -93,7 +90,6 @@ async fn main() -> Result<()> {
             keep_temp,
             mut relays,
         } => {
-            let mut relay_list = base_relay_list;
             relay_list.append(&mut relays);
             if relay_list.is_empty() {
                 anyhow::bail!(
@@ -106,7 +102,6 @@ async fn main() -> Result<()> {
             keep_temp,
             mut relays,
         } => {
-            let mut relay_list = base_relay_list;
             relay_list.append(&mut relays);
             if relay_list.is_empty() {
                 anyhow::bail!(
@@ -130,7 +125,7 @@ async fn main() -> Result<()> {
 }
 
 async fn run_all_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
-    println!("{}", "🧪 Running all GitSmith integration tests...".bold());
+    println!("{}", "🧪 Running all gitsmith integration tests...".bold());
     println!();
 
     let mut total_tests = 0;

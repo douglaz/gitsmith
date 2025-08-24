@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-echo "🔨 GitSmith pre-push checks..."
+echo "🔨 gitsmith pre-push checks..."
 echo ""
 
 # Check if we're in a nix environment
