@@ -3,7 +3,7 @@ use anyhow::Result;
 use colored::*;
 
 /// Run all account management tests
-pub async fn run_tests(keep_temp: bool, _relays: &[String]) -> Result<(usize, usize)> {
+pub async fn run_tests(keep_temp: bool) -> Result<(usize, usize)> {
     let mut passed = 0;
     let mut failed = 0;
 

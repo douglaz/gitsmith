@@ -74,7 +74,7 @@ async fn main() -> Result<()> {
                     "No relay URLs available. Either start the local relay or provide --relay URLs"
                 );
             }
-            run_account_tests(keep_temp, &relay_list).await
+            run_account_tests(keep_temp).await
         }
         cli::Commands::Repo {
             keep_temp,
@@ -138,7 +138,7 @@ async fn run_all_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
 
     // Account tests
     println!("{}", "📝 Account Management Tests".blue().bold());
-    let (passed, failed) = account::run_tests(keep_temp, relays).await?;
+    let (passed, failed) = account::run_tests(keep_temp).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
@@ -185,9 +185,9 @@ async fn run_all_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
     Ok(())
 }
 
-async fn run_account_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
+async fn run_account_tests(keep_temp: bool) -> Result<()> {
     println!("{}", "📝 Running Account Management Tests".blue().bold());
-    let (passed, failed) = account::run_tests(keep_temp, relays).await?;
+    let (passed, failed) = account::run_tests(keep_temp).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
