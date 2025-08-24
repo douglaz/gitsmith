@@ -1,6 +1,6 @@
 use anyhow::{Context, Result, bail};
 use git2::Repository;
-use nostr::{Keys, RelayUrl, ToBech32};
+use nostr::{FromBech32, Keys, RelayUrl, ToBech32};
 use nostr_sdk::Client;
 use std::path::Path;
 use std::time::Duration;
@@ -33,9 +33,6 @@ pub async fn announce_repository(
     // Connect to relays
     client.connect().await;
 
-    // Wait for connections with timeout
-    tokio::time::sleep(Duration::from_secs(2)).await;
-
     // Send event
     client.send_event(&event).await?;
 
@@ -65,10 +62,39 @@ pub async fn announce_repository(
     })
 }
 
+/// Load nostr configuration from git config
+fn load_nostr_config(repo: &Repository) -> Option<(String, Vec<String>, Option<String>)> {
+    let config = repo.config().ok()?;
+
+    // Try to load identifier and relays
+    let identifier = config.get_string("nostr.identifier").ok()?;
+
+    // Load owner if present
+    let owner = config.get_string("nostr.owner").ok();
+
+    // Load all relay entries
+    let mut relays = Vec::new();
+    if let Ok(mut entries) = config.entries(Some("nostr.relay")) {
+        while let Some(entry) = entries.next() {
+            if let Ok(entry) = entry
+                && let Some(value) = entry.value()
+            {
+                relays.push(value.to_string());
+            }
+        }
+    }
+
+    if relays.is_empty() {
+        return None;
+    }
+
+    Some((identifier, relays, owner))
+}
+
 /// Detect repository information from git
 pub fn detect_from_git(repo_path: &Path) -> Result<RepoAnnouncement> {
     let repo = Repository::open(repo_path)
-        .with_context(|| format!("Failed to open git repository at {:?}", repo_path))?;
+        .with_context(|| format!("Failed to open git repository at {repo_path:?}"))?;
 
     // Get repo name from directory
     let name = repo_path
@@ -91,12 +117,31 @@ pub fn detect_from_git(repo_path: &Path) -> Result<RepoAnnouncement> {
         vec![]
     };
 
+    // Try to load saved nostr configuration
+    let (identifier, relays) =
+        if let Some((saved_id, saved_relays, _owner)) = load_nostr_config(&repo) {
+            (saved_id, saved_relays)
+        } else {
+            (sanitize_identifier(&name), vec![])
+        };
+
+    // Try to load other saved values
+    let config = repo.config().ok();
+    let saved_name = config
+        .as_ref()
+        .and_then(|c| c.get_string("nostr.name").ok())
+        .unwrap_or(name);
+    let saved_description = config
+        .as_ref()
+        .and_then(|c| c.get_string("nostr.description").ok())
+        .unwrap_or_default();
+
     Ok(RepoAnnouncement {
-        identifier: sanitize_identifier(&name),
-        name,
-        description: String::new(),
+        identifier,
+        name: saved_name,
+        description: saved_description,
         clone_urls,
-        relays: vec![],
+        relays,
         web: vec![],
         root_commit,
         maintainers: vec![],
@@ -170,6 +215,54 @@ pub fn update_git_config(repo_path: &Path, nostr_url: &str) -> Result<()> {
 
     // Save the nostr URL in git config
     config.set_str("nostr.url", nostr_url)?;
+
+    Ok(())
+}
+
+/// Get repository owner from git config
+pub fn get_repo_owner(repo_path: &Path) -> Result<Option<String>> {
+    let repo = Repository::open(repo_path)
+        .with_context(|| format!("Failed to open git repository at {repo_path:?}"))?;
+
+    let config = repo.config()?;
+
+    // Try to get owner npub from config
+    if let Ok(owner_npub) = config.get_string("nostr.owner") {
+        // Convert npub to hex public key
+        let public_key = nostr::PublicKey::from_bech32(&owner_npub)?;
+        return Ok(Some(public_key.to_hex()));
+    }
+
+    Ok(None)
+}
+
+/// Update git config with full repository announcement
+pub fn update_git_config_full(
+    repo_path: &Path,
+    announcement: &RepoAnnouncement,
+    nostr_url: &str,
+    owner_npub: &str,
+) -> Result<()> {
+    let repo = Repository::open(repo_path)?;
+    let mut config = repo.config()?;
+
+    // Save all nostr configuration
+    config.set_str("nostr.url", nostr_url)?;
+    config.set_str("nostr.identifier", &announcement.identifier)?;
+    config.set_str("nostr.name", &announcement.name)?;
+    config.set_str("nostr.owner", owner_npub)?;
+
+    if !announcement.description.is_empty() {
+        config.set_str("nostr.description", &announcement.description)?;
+    }
+
+    // Clear any existing relays first
+    let _ = config.remove_multivar("nostr.relay", ".*");
+
+    // Save each relay
+    for relay in &announcement.relays {
+        config.set_multivar("nostr.relay", "^$", relay)?;
+    }
 
     Ok(())
 }

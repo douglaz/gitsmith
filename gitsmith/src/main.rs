@@ -1,10 +1,13 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
 use gitsmith_core::{
     PublishConfig, RepoAnnouncement, announce_repository, detect_from_git, get_git_state,
-    update_git_config,
+    update_git_config_full,
 };
+use nostr_sdk::nostr::{Keys, ToBech32};
 use std::path::PathBuf;
+
+mod commands;
 
 #[derive(Parser)]
 #[command(name = "gitsmith")]
@@ -18,6 +21,21 @@ struct Cli {
 #[derive(Subcommand)]
 #[allow(clippy::large_enum_variant)]
 enum Commands {
+    /// Manage Nostr accounts
+    Account {
+        #[command(subcommand)]
+        command: commands::account::AccountCommands,
+    },
+
+    /// Send a pull request
+    Send(commands::send::SendArgs),
+
+    /// List pull requests
+    List(commands::list::ListArgs),
+
+    /// Sync repository state
+    Sync(commands::sync::SyncArgs),
+
     /// Initialize and announce a repository on Nostr
     Init {
         /// Repository identifier (unique, no spaces)
@@ -53,12 +71,16 @@ enum Commands {
         private_key: String,
 
         /// Root commit (auto-detected if not provided)
-        #[arg(long)]
+        #[arg(long, alias = "earliest-unique-commit")]
         root_commit: Option<String>,
 
         /// Additional maintainer npubs
-        #[arg(long = "maintainer")]
+        #[arg(long = "other-maintainers", alias = "maintainer")]
         maintainers: Vec<String>,
+
+        /// Blossom servers for large file storage
+        #[arg(long = "blossoms", value_delimiter = ',')]
+        blossom_servers: Vec<String>,
 
         /// Repository path (default: current directory)
         #[arg(long, default_value = ".")]
@@ -120,6 +142,14 @@ async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
+        Commands::Account { command } => commands::account::handle_account_command(command).await,
+
+        Commands::Send(args) => commands::send::handle_send_command(args).await,
+
+        Commands::List(args) => commands::list::handle_list_command(args).await,
+
+        Commands::Sync(args) => commands::sync::handle_sync_command(args).await,
+
         Commands::Init {
             identifier,
             name,
@@ -130,19 +160,22 @@ async fn main() -> Result<()> {
             private_key,
             root_commit,
             maintainers,
+            blossom_servers,
             repo_path,
             timeout,
             output,
             update_git_config: update_config,
         } => {
             // Validate inputs
-            if relays.is_empty() {
-                bail!("At least one relay is required (--relay)");
-            }
+            ensure!(
+                !relays.is_empty(),
+                "At least one relay is required (--relay)"
+            );
 
-            if identifier.contains(' ') || identifier.contains('/') {
-                bail!("Identifier must not contain spaces or slashes");
-            }
+            ensure!(
+                !identifier.contains(' ') && !identifier.contains('/'),
+                "Identifier must not contain spaces or slashes"
+            );
 
             // Build announcement
             let mut announcement = if repo_path.exists() {
@@ -155,7 +188,7 @@ async fn main() -> Result<()> {
                     web: vec![],
                     root_commit: String::new(),
                     maintainers: vec![],
-                    grasp_servers: vec![],
+                    grasp_servers: blossom_servers.clone(),
                 })
             } else {
                 RepoAnnouncement {
@@ -167,7 +200,7 @@ async fn main() -> Result<()> {
                     web: vec![],
                     root_commit: String::new(),
                     maintainers: vec![],
-                    grasp_servers: vec![],
+                    grasp_servers: blossom_servers.clone(),
                 }
             };
 
@@ -181,15 +214,17 @@ async fn main() -> Result<()> {
             announcement.relays = relays;
             announcement.web = web;
             announcement.maintainers = maintainers;
+            announcement.grasp_servers = blossom_servers;
 
             if let Some(commit) = root_commit {
                 announcement.root_commit = commit;
             }
 
             // Ensure we have a root commit
-            if announcement.root_commit.is_empty() {
-                bail!("Root commit could not be detected. Please specify --root-commit");
-            }
+            ensure!(
+                !announcement.root_commit.is_empty(),
+                "Root commit could not be detected. Please specify --root-commit"
+            );
 
             // Clean up private key (remove nsec prefix if present)
             let clean_private_key = if private_key.starts_with("nsec") {
@@ -200,6 +235,13 @@ async fn main() -> Result<()> {
             } else {
                 private_key
             };
+
+            // Get the npub of the person initializing
+            let keys = Keys::parse(&clean_private_key).context("Failed to parse private key")?;
+            let owner_npub = keys
+                .public_key()
+                .to_bech32()
+                .context("Failed to convert public key to npub")?;
 
             // Publish
             let config = PublishConfig {
@@ -214,7 +256,12 @@ async fn main() -> Result<()> {
             // Update git config if requested
             if update_config
                 && repo_path.exists()
-                && let Err(e) = update_git_config(&repo_path, &result.nostr_url)
+                && let Err(e) = update_git_config_full(
+                    &repo_path,
+                    &announcement,
+                    &result.nostr_url,
+                    &owner_npub,
+                )
             {
                 eprintln!("Warning: Failed to update git config: {}", e);
             }
@@ -222,25 +269,25 @@ async fn main() -> Result<()> {
             // Output result
             match output {
                 OutputFormat::Human => {
-                    println!("✅ Repository announced successfully!");
-                    println!();
-                    println!("Event ID: {}", result.event_id);
-                    println!("Nostr URL: {}", result.nostr_url);
-                    println!();
-                    println!("Published to {} relays:", result.successes.len());
+                    eprintln!("✅ Repository announced successfully!");
+                    eprintln!();
+                    eprintln!("Event ID: {}", result.event_id);
+                    eprintln!("Nostr URL: {}", result.nostr_url);
+                    eprintln!();
+                    eprintln!("Published to {} relays:", result.successes.len());
                     for relay in &result.successes {
-                        println!("  ✓ {}", relay);
+                        eprintln!("  ✓ {}", relay);
                     }
                     if !result.failures.is_empty() {
-                        println!();
-                        println!("⚠️  Failed relays:");
+                        eprintln!();
+                        eprintln!("⚠️  Failed relays:");
                         for (relay, error) in &result.failures {
-                            println!("  ✗ {}: {}", relay, error);
+                            eprintln!("  ✗ {}: {}", relay, error);
                         }
                     }
-                    println!();
-                    println!("To clone this repository:");
-                    println!("  git clone {}", result.nostr_url);
+                    eprintln!();
+                    eprintln!("To clone this repository:");
+                    eprintln!("  git clone {}", result.nostr_url);
                 }
                 OutputFormat::Json => {
                     println!("{}", serde_json::to_string_pretty(&result)?);
@@ -249,6 +296,8 @@ async fn main() -> Result<()> {
                     println!("{}", result.nostr_url);
                 }
             }
+
+            Ok(())
         }
 
         Commands::Generate {
@@ -271,10 +320,12 @@ async fn main() -> Result<()> {
 
             if let Some(path) = output {
                 std::fs::write(path, json)?;
-                println!("Repository configuration written to file");
+                eprintln!("Repository configuration written to file");
             } else {
                 println!("{}", json);
             }
+
+            Ok(())
         }
 
         Commands::State {
@@ -294,10 +345,10 @@ async fn main() -> Result<()> {
                     println!("{}", serde_json::to_string_pretty(&json)?);
                 }
                 OutputFormat::Human => {
-                    println!("Git State for '{}':", state.identifier);
-                    println!();
+                    eprintln!("Git State for '{}':", state.identifier);
+                    eprintln!();
                     for (ref_name, commit) in &state.refs {
-                        println!("  {} -> {}", ref_name, &commit[..8]);
+                        eprintln!("  {} -> {}", ref_name, &commit[..8]);
                     }
                 }
                 OutputFormat::Minimal => {
@@ -306,8 +357,8 @@ async fn main() -> Result<()> {
                     }
                 }
             }
+
+            Ok(())
         }
     }
-
-    Ok(())
 }
