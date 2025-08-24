@@ -14,11 +14,15 @@ pub async fn run_tests(
     // Test listing pull requests
     match test_list_pull_requests(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_list_pull_requests", "✓".green());
+            println!("  {check} test_list_pull_requests", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_list_pull_requests: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_list_pull_requests: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -26,11 +30,15 @@ pub async fn run_tests(
     // Test listing empty repo
     match test_list_empty_repo(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_list_empty_repo", "✓".green());
+            println!("  {check} test_list_empty_repo", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_list_empty_repo: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_list_empty_repo: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -38,11 +46,15 @@ pub async fn run_tests(
     // Test syncing repository
     match test_sync_repository(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_sync_repository", "✓".green());
+            println!("  {check} test_sync_repository", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_sync_repository: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_sync_repository: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -50,11 +62,15 @@ pub async fn run_tests(
     // Test sync with saved config
     match test_sync_with_saved_config(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_sync_with_saved_config", "✓".green());
+            println!("  {check} test_sync_with_saved_config", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_sync_with_saved_config: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_sync_with_saved_config: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -62,22 +78,30 @@ pub async fn run_tests(
     // Error handling tests
     match test_invalid_private_key(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_invalid_private_key", "✓".green());
+            println!("  {check} test_invalid_private_key", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_invalid_private_key: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_invalid_private_key: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
 
     match test_missing_relays(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_missing_relays", "✓".green());
+            println!("  {check} test_missing_relays", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_missing_relays: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_missing_relays: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -148,18 +172,24 @@ async fn test_list_pull_requests(verbose: bool, keep_temp: bool, relays: &[Strin
     // Verify PR details
     if pr.description != "This PR will be listed" {
         anyhow::bail!(
-            "PR description mismatch. Expected: 'This PR will be listed', Got: '{}'",
-            pr.description
+            "PR description mismatch. Expected: 'This PR will be listed', Got: '{description}'",
+            description = pr.description
         );
     }
 
     if pr.patches_count != 2 {
-        anyhow::bail!("Expected 2 patches (HEAD~2), got {}", pr.patches_count);
+        anyhow::bail!(
+            "Expected 2 patches (HEAD~2), got {count}",
+            count = pr.patches_count
+        );
     }
 
     if verbose {
-        println!("    ✓ Found PR with title: {}", pr.title);
-        println!("    ✓ PR has {} patches as expected", pr.patches_count);
+        println!("    ✓ Found PR with title: {title}", title = pr.title);
+        println!(
+            "    ✓ PR has {count} patches as expected",
+            count = pr.patches_count
+        );
     }
 
     Ok(())
@@ -208,7 +238,10 @@ async fn test_list_empty_repo(verbose: bool, keep_temp: bool, relays: &[String])
     // Also parse to verify it's truly empty
     let prs = output.parse_pr_list()?;
     if !prs.is_empty() {
-        anyhow::bail!("Expected empty PR list, but got {} PRs", prs.len());
+        anyhow::bail!(
+            "Expected empty PR list, but got {count} PRs",
+            count = prs.len()
+        );
     }
 
     if verbose {

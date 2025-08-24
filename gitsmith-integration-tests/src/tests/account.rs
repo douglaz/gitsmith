@@ -14,11 +14,15 @@ pub async fn run_tests(
     // Test account login
     match test_account_login(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_account_login", "✓".green());
+            println!("  {check} test_account_login", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_account_login: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_account_login: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -26,14 +30,17 @@ pub async fn run_tests(
     // Test account login with password argument
     match test_account_login_with_password_arg(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_account_login_with_password_arg", "✓".green());
+            println!(
+                "  {check} test_account_login_with_password_arg",
+                check = "✓".green()
+            );
             passed += 1;
         }
         Err(e) => {
             println!(
-                "  {} test_account_login_with_password_arg: {}",
-                "✗".red(),
-                e
+                "  {cross} test_account_login_with_password_arg: {error}",
+                cross = "✗".red(),
+                error = e
             );
             failed += 1;
         }
@@ -42,11 +49,18 @@ pub async fn run_tests(
     // Test account login with environment variable
     match test_account_login_with_env_var(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_account_login_with_env_var", "✓".green());
+            println!(
+                "  {check} test_account_login_with_env_var",
+                check = "✓".green()
+            );
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_account_login_with_env_var: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_account_login_with_env_var: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -54,11 +68,15 @@ pub async fn run_tests(
     // Test account logout
     match test_account_logout(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_account_logout", "✓".green());
+            println!("  {check} test_account_logout", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_account_logout: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_account_logout: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -66,11 +84,15 @@ pub async fn run_tests(
     // Test account export
     match test_account_export(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_account_export", "✓".green());
+            println!("  {check} test_account_export", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_account_export: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_account_export: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -78,11 +100,15 @@ pub async fn run_tests(
     // Test account list
     match test_account_list(verbose, keep_temp).await {
         Ok(_) => {
-            println!("  {} test_account_list", "✓".green());
+            println!("  {check} test_account_list", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_account_list: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_account_list: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }

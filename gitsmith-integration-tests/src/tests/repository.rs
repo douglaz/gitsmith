@@ -55,11 +55,15 @@ pub async fn run_tests(
     // Test initializing a new repository
     match test_init_new_repo(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_init_new_repo", "✓".green());
+            println!("  {check} test_init_new_repo", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_init_new_repo: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_init_new_repo: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -67,11 +71,15 @@ pub async fn run_tests(
     // Test initializing an existing repository
     match test_init_existing_repo(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_init_existing_repo", "✓".green());
+            println!("  {check} test_init_existing_repo", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_init_existing_repo: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_init_existing_repo: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -79,11 +87,18 @@ pub async fn run_tests(
     // Test config persistence
     match test_init_config_persistence(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_init_config_persistence", "✓".green());
+            println!(
+                "  {check} test_init_config_persistence",
+                check = "✓".green()
+            );
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_init_config_persistence: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_init_config_persistence: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -91,11 +106,15 @@ pub async fn run_tests(
     // Test detect from git
     match test_detect_from_git(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_detect_from_git", "✓".green());
+            println!("  {check} test_detect_from_git", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_detect_from_git: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_detect_from_git: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -188,7 +207,8 @@ async fn test_init_config_persistence(
     ctx.setup_git_repo(2)?;
 
     let nsec = TestContext::generate_test_key();
-    let identifier = format!("config-test-{}", uuid::Uuid::new_v4());
+    let id = uuid::Uuid::new_v4();
+    let identifier = format!("config-test-{id}");
     let repo_path = ctx.repo_path.to_string_lossy();
 
     // Initialize repository
@@ -206,11 +226,11 @@ async fn test_init_config_persistence(
     // Check git config was updated
     let git_config_path = ctx.repo_path.join(".git/config");
     assert_file_contains(&git_config_path, "[nostr]")?;
-    assert_file_contains(&git_config_path, &format!("identifier = {}", identifier))?;
+    assert_file_contains(&git_config_path, &format!("identifier = {identifier}"))?;
     assert_file_contains(&git_config_path, "name = Config Test")?;
     // Check that at least one relay was saved
     for relay in relays {
-        if assert_file_contains(&git_config_path, &format!("relay = {}", relay)).is_ok() {
+        if assert_file_contains(&git_config_path, &format!("relay = {relay}")).is_ok() {
             break; // At least one relay found
         }
     }
@@ -226,7 +246,8 @@ async fn test_detect_from_git(verbose: bool, keep_temp: bool, relays: &[String])
 
     // First initialize a repo
     let nsec = TestContext::generate_test_key();
-    let identifier = format!("detect-test-{}", uuid::Uuid::new_v4());
+    let id = uuid::Uuid::new_v4();
+    let identifier = format!("detect-test-{id}");
     let repo_path = ctx.repo_path.to_string_lossy();
 
     let args = build_init_args(
@@ -267,9 +288,8 @@ async fn test_detect_from_git(verbose: bool, keep_temp: bool, relays: &[String])
     }
     if !relay_found {
         anyhow::bail!(
-            "Expected to find at least one relay from {:?} in output, got: {}",
-            relays,
-            output.stdout
+            "Expected to find at least one relay from {relays:?} in output, got: {output}",
+            output = output.stdout
         );
     }
 

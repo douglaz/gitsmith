@@ -16,11 +16,15 @@ pub async fn run_tests(
     // Test sending a simple PR
     match test_send_pr_simple(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_send_pr_simple", "✓".green());
+            println!("  {check} test_send_pr_simple", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_send_pr_simple: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_send_pr_simple: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -28,11 +32,18 @@ pub async fn run_tests(
     // Test sending PR with title and description
     match test_send_pr_with_title_description(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_send_pr_with_title_description", "✓".green());
+            println!(
+                "  {check} test_send_pr_with_title_description",
+                check = "✓".green()
+            );
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_send_pr_with_title_description: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_send_pr_with_title_description: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -40,11 +51,15 @@ pub async fn run_tests(
     // Test sending PR with no commits
     match test_send_pr_no_commits(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_send_pr_no_commits", "✓".green());
+            println!("  {check} test_send_pr_no_commits", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_send_pr_no_commits: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_send_pr_no_commits: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -52,11 +67,18 @@ pub async fn run_tests(
     // Test sending PR with multiple patches
     match test_send_pr_multiple_patches(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_send_pr_multiple_patches", "✓".green());
+            println!(
+                "  {check} test_send_pr_multiple_patches",
+                check = "✓".green()
+            );
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_send_pr_multiple_patches: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_send_pr_multiple_patches: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -64,11 +86,15 @@ pub async fn run_tests(
     // Test full PR workflow
     match test_full_pr_workflow(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_full_pr_workflow", "✓".green());
+            println!("  {check} test_full_pr_workflow", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_full_pr_workflow: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_full_pr_workflow: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
@@ -76,11 +102,15 @@ pub async fn run_tests(
     // Test multiple PRs
     match test_multiple_prs(verbose, keep_temp, relays).await {
         Ok(_) => {
-            println!("  {} test_multiple_prs", "✓".green());
+            println!("  {check} test_multiple_prs", check = "✓".green());
             passed += 1;
         }
         Err(e) => {
-            println!("  {} test_multiple_prs: {}", "✗".red(), e);
+            println!(
+                "  {cross} test_multiple_prs: {error}",
+                cross = "✗".red(),
+                error = e
+            );
             failed += 1;
         }
     }
