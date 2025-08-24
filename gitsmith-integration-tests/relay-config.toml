@@ -1,0 +1,41 @@
+# Configuration for nostr-rs-relay used in integration tests
+
+[info]
+relay_url = "ws://localhost:7878"
+name = "GitSmith Test Relay"
+description = "Temporary relay for GitSmith integration tests"
+pubkey = ""
+contact = ""
+
+[network]
+port = 7878
+address = "127.0.0.1"
+
+[database]
+# Use a temporary directory that will be created at runtime
+data_directory = "./test-relay-data"
+
+[limits]
+# High limits for testing - not suitable for production
+messages_per_sec = 1000
+max_event_bytes = 524288
+max_ws_message_bytes = 524288
+max_ws_frame_bytes = 524288
+max_subscriptions = 100
+max_filters = 100
+max_subid_length = 256
+max_event_tags = 1000
+client_msg_per_sec = 100
+
+[authorization]
+# No authentication for testing
+nip42_auth = false
+nip42_dms = false
+
+[verified_users]
+# No verification needed for tests
+mode = "disabled"
+
+[logging]
+# Minimal logging for tests
+level = "warn"

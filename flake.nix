@@ -124,6 +124,9 @@
             # For static builds
             pkgsStatic.stdenv.cc
             pkgsStatic.openssl
+            
+            # Nostr relay for integration tests
+            nostr-rs-relay
           ];
           
           RUST_BACKTRACE = 1;
