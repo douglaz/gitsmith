@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::Duration;
 use strum::{Display, EnumString};
+use tracing::{debug, info};
 
 use crate::patches::{KIND_PULL_REQUEST, KIND_PULL_REQUEST_UPDATE};
 
@@ -34,14 +35,31 @@ pub async fn list_pull_requests(
     repo_coordinate: &str,
     relays: Vec<String>,
 ) -> Result<Vec<PullRequest>> {
+    list_pull_requests_with_timeout(repo_coordinate, relays, Duration::from_millis(1500)).await
+}
+
+/// List pull requests for a repository with custom timeout
+pub async fn list_pull_requests_with_timeout(
+    repo_coordinate: &str,
+    relays: Vec<String>,
+    timeout_duration: Duration,
+) -> Result<Vec<PullRequest>> {
+    info!(
+        "Listing pull requests for {} with timeout {:?}",
+        repo_coordinate, timeout_duration
+    );
+    debug!("Using relays: {:?}", relays);
+
     let client = Client::default();
 
     // Add relays
     for relay_url in &relays {
+        debug!("Adding relay: {}", relay_url);
         client.add_relay(relay_url).await?;
     }
 
     // Connect to relays
+    info!("Connecting to {} relay(s)", relays.len());
     client.connect().await;
 
     // Create filter for PR events
@@ -52,13 +70,21 @@ pub async fn list_pull_requests(
         nostr::SingleLetterTag::lowercase(nostr::Alphabet::A),
         repo_coordinate,
     );
+    debug!(
+        "Created filter for PR events with repository coordinate: {}",
+        repo_coordinate
+    );
 
     // Subscribe to events
     client.subscribe(filter, None).await?;
+    info!(
+        "Subscribed to PR events, waiting up to {:?}",
+        timeout_duration
+    );
 
     // Collect events with early exit when found
     let mut events = Vec::new();
-    let timeout = tokio::time::sleep(Duration::from_millis(1500)); // Wait up to 1.5 seconds
+    let timeout = tokio::time::sleep(timeout_duration); // Use configurable timeout
     tokio::pin!(timeout);
 
     let mut notifications = client.notifications();
@@ -66,16 +92,21 @@ pub async fn list_pull_requests(
 
     loop {
         tokio::select! {
-            _ = &mut timeout => break,
+            _ = &mut timeout => {
+                debug!("Timeout reached after {:?}", timeout_duration);
+                break;
+            },
             notification = notifications.recv() => {
                 if let Ok(notification) = notification {
                     if let RelayPoolNotification::Event { event, .. } = notification
                         && (event.kind == KIND_PULL_REQUEST || event.kind == KIND_PULL_REQUEST_UPDATE) {
+                            debug!("Received PR event: {} (kind={})", event.id, event.kind);
                             events.push(*event);
                             last_event_time = tokio::time::Instant::now();
                         }
                     // If we've found events and 100ms have passed without new ones, exit early
                     if !events.is_empty() && last_event_time.elapsed() > Duration::from_millis(100) {
+                        debug!("Early exit: found {} events and 100ms elapsed without new ones", events.len());
                         break;
                     }
                 }
@@ -83,10 +114,14 @@ pub async fn list_pull_requests(
         }
     }
 
+    info!("Collected {} raw events from relays", events.len());
+
     // Process events into pull requests
+    debug!("Processing {} events into pull requests", events.len());
     let mut prs: HashMap<EventId, PullRequest> = HashMap::new();
 
     for event in events {
+        debug!("Processing event {} into PR", event.id);
         let pr = event_to_pull_request(&event)?;
 
         // Check if this is an update to existing PR
@@ -114,6 +149,10 @@ pub async fn list_pull_requests(
     let mut result: Vec<PullRequest> = prs.into_values().collect();
     result.sort_by_key(|pr| std::cmp::Reverse(pr.created_at));
 
+    info!(
+        "Returning {} unique pull requests after processing",
+        result.len()
+    );
     Ok(result)
 }
 

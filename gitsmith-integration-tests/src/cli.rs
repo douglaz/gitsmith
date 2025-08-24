@@ -9,10 +9,6 @@ pub struct Cli {
     #[arg(long, global = true)]
     pub skip_relay_setup: bool,
 
-    /// Show verbose output
-    #[arg(long, short = 'v', global = true)]
-    pub verbose: bool,
-
     #[command(subcommand)]
     pub command: Commands,
 }
@@ -72,5 +68,20 @@ pub enum Commands {
         /// Additional relay URLs to use for tests (can be specified multiple times)
         #[arg(long = "relay")]
         relays: Vec<String>,
+    },
+
+    /// Run public relay tests with extended timeouts
+    PublicRelay {
+        /// Keep temporary directories after tests
+        #[arg(long)]
+        keep_temp: bool,
+
+        /// Relay URLs to test (required for public relay tests)
+        #[arg(long = "relay", required = true)]
+        relays: Vec<String>,
+
+        /// Maximum time to wait for events to appear (in minutes)
+        #[arg(long, default_value = "5")]
+        max_wait_minutes: u64,
     },
 }

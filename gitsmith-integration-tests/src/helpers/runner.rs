@@ -1,134 +1,273 @@
 use anyhow::{Context, Result};
-use assert_cmd::Command;
 use std::path::Path;
+use std::process::Stdio;
+use tokio::process::Command;
 
 /// Runner for gitsmith commands
 pub struct GitsmithRunner {
-    verbose: bool,
     home_dir: String,
 }
 
 impl GitsmithRunner {
     /// Create a new gitsmith runner with HOME environment set
-    pub fn new(home_dir: &Path, verbose: bool) -> Self {
+    pub fn new(home_dir: &Path) -> Self {
         Self {
-            verbose,
             home_dir: home_dir.to_string_lossy().to_string(),
         }
     }
 
-    /// Run a gitsmith command with arguments
-    pub fn run(&self, args: &[&str]) -> Result<CommandOutput> {
-        if self.verbose {
-            println!("    $ gitsmith {}", args.join(" "));
-        }
+    /// Run a gitsmith command with arguments, piping output directly to stdout/stderr
+    pub async fn run(&self, args: &[&str]) -> Result<CommandOutput> {
+        println!("    $ gitsmith {}", args.join(" "));
 
-        let mut cmd = Command::cargo_bin("gitsmith").unwrap_or_else(|_| {
-            // Fallback to using the built binary directly
-            let mut cmd = Command::new("cargo");
-            cmd.args([
-                "run",
-                "--manifest-path",
-                "/home/master/p/gitsmith/Cargo.toml",
-                "--bin",
-                "gitsmith",
-                "--",
-            ]);
-            cmd
+        // Determine the path to the gitsmith binary
+        let gitsmith_path = std::env::current_exe().ok().and_then(|p| {
+            let parent = p.parent()?;
+            let gitsmith = parent.join("gitsmith");
+            if gitsmith.exists() {
+                Some(gitsmith)
+            } else {
+                None
+            }
         });
 
-        cmd.args(args)
-            .env("HOME", &self.home_dir)
-            .env("GITSMITH_PASSWORD", "test"); // Default test password
+        let output = if let Some(path) = gitsmith_path {
+            Command::new(path)
+                .args(args)
+                .env("HOME", &self.home_dir)
+                .env("GITSMITH_PASSWORD", "test")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::inherit())
+                .output()
+                .await?
+        } else {
+            // Try to find Cargo.toml relative to current directory or use cargo from PATH
+            let manifest_path = std::env::current_exe().ok().and_then(|p| {
+                // Go up directories to find workspace root
+                let mut dir = p.parent()?;
+                for _ in 0..5 {
+                    let cargo_toml = dir.join("Cargo.toml");
+                    if cargo_toml.exists() {
+                        return Some(cargo_toml);
+                    }
+                    dir = dir.parent()?;
+                }
+                None
+            });
 
-        let output = cmd.output()?;
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "--bin", "gitsmith", "--"]);
+
+            if let Some(manifest) = manifest_path {
+                cmd.arg("--manifest-path");
+                cmd.arg(manifest);
+            }
+
+            cmd.args(args)
+                .env("HOME", &self.home_dir)
+                .env("GITSMITH_PASSWORD", "test")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::inherit())
+                .output()
+                .await?
+        };
+
+        // Capture stdout only (stderr goes directly to terminal)
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+        // Print stdout for visibility
+        if !stdout.is_empty() {
+            print!("{}", stdout);
+        }
 
         let result = CommandOutput {
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            stdout,
+            stderr: String::new(),
             success: output.status.success(),
             _exit_code: output.status.code().unwrap_or(-1),
         };
 
-        if self.verbose {
-            if !result.stderr.is_empty() {
-                println!("      stderr: {}", result.stderr.trim());
+        Ok(result)
+    }
+
+    /// Run a gitsmith command with JSON output capture
+    /// This version captures stdout for JSON parsing while still showing stderr
+    pub async fn run_json(&self, args: &[&str]) -> Result<CommandOutput> {
+        println!("    $ gitsmith {}", args.join(" "));
+
+        // Determine the path to the gitsmith binary
+        let gitsmith_path = std::env::current_exe().ok().and_then(|p| {
+            let parent = p.parent()?;
+            let gitsmith = parent.join("gitsmith");
+            if gitsmith.exists() {
+                Some(gitsmith)
+            } else {
+                None
             }
-            if !result.stdout.is_empty() {
-                println!("      stdout: {}", result.stdout.trim());
+        });
+
+        let output = if let Some(path) = gitsmith_path {
+            Command::new(path)
+                .args(args)
+                .env("HOME", &self.home_dir)
+                .env("GITSMITH_PASSWORD", "test")
+                .stdout(Stdio::piped()) // Capture stdout for JSON
+                .stderr(Stdio::inherit()) // Still show stderr
+                .output()
+                .await?
+        } else {
+            // Try to find Cargo.toml relative to current directory or use cargo from PATH
+            let manifest_path = std::env::current_exe().ok().and_then(|p| {
+                // Go up directories to find workspace root
+                let mut dir = p.parent()?;
+                for _ in 0..5 {
+                    let cargo_toml = dir.join("Cargo.toml");
+                    if cargo_toml.exists() {
+                        return Some(cargo_toml);
+                    }
+                    dir = dir.parent()?;
+                }
+                None
+            });
+
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "--bin", "gitsmith", "--"]);
+
+            if let Some(manifest) = manifest_path {
+                cmd.arg("--manifest-path");
+                cmd.arg(manifest);
             }
+
+            cmd.args(args)
+                .env("HOME", &self.home_dir)
+                .env("GITSMITH_PASSWORD", "test")
+                .stdout(Stdio::piped()) // Capture stdout for JSON
+                .stderr(Stdio::inherit()) // Still show stderr
+                .output()
+                .await?
+        };
+
+        let result = CommandOutput {
+            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
+            stderr: String::new(), // stderr is inherited, not captured
+            success: output.status.success(),
+            _exit_code: output.status.code().unwrap_or(-1),
+        };
+
+        // Also print the JSON output for visibility
+        if !result.stdout.is_empty() {
+            println!("{}", result.stdout);
         }
 
         Ok(result)
     }
 
     /// Run a gitsmith command expecting success
-    pub fn run_success(&self, args: &[&str]) -> Result<CommandOutput> {
-        let output = self.run(args)?;
+    pub async fn run_success(&self, args: &[&str]) -> Result<CommandOutput> {
+        // Check if this is a command that outputs JSON
+        let is_json = args.contains(&"--json");
+
+        let output = if is_json {
+            self.run_json(args).await?
+        } else {
+            self.run(args).await?
+        };
+
         if !output.success {
-            anyhow::bail!(
-                "Command failed: gitsmith {}\nstderr: {}\nstdout: {}",
-                args.join(" "),
-                output.stderr,
-                output.stdout
-            );
+            anyhow::bail!("Command failed: gitsmith {}", args.join(" "));
         }
         Ok(output)
     }
 
     /// Run a gitsmith command expecting failure
-    pub fn run_failure(&self, args: &[&str]) -> Result<CommandOutput> {
-        let output = self.run(args)?;
+    pub async fn run_failure(&self, args: &[&str]) -> Result<CommandOutput> {
+        let output = self.run(args).await?;
         if output.success {
             anyhow::bail!(
-                "Command unexpectedly succeeded: gitsmith {}\nstdout: {}",
-                args.join(" "),
-                output.stdout
+                "Command unexpectedly succeeded: gitsmith {}",
+                args.join(" ")
             );
         }
         Ok(output)
     }
 
     /// Run command with custom environment variables
-    pub fn run_with_env(&self, args: &[&str], env: Vec<(&str, &str)>) -> Result<CommandOutput> {
-        if self.verbose {
-            println!("    $ gitsmith {}", args.join(" "));
-            for (key, val) in &env {
-                println!("      env: {}={}", key, val);
-            }
+    pub async fn run_with_env(
+        &self,
+        args: &[&str],
+        env: Vec<(&str, &str)>,
+    ) -> Result<CommandOutput> {
+        println!("    $ gitsmith {}", args.join(" "));
+        for (key, val) in &env {
+            println!("      env: {}={}", key, val);
         }
 
-        let mut cmd = Command::cargo_bin("gitsmith").unwrap_or_else(|_| {
-            let mut cmd = Command::new("cargo");
-            cmd.args([
-                "run",
-                "--manifest-path",
-                "/home/master/p/gitsmith/Cargo.toml",
-                "--bin",
-                "gitsmith",
-                "--",
-            ]);
-            cmd
+        // Determine the path to the gitsmith binary
+        let gitsmith_path = std::env::current_exe().ok().and_then(|p| {
+            let parent = p.parent()?;
+            let gitsmith = parent.join("gitsmith");
+            if gitsmith.exists() {
+                Some(gitsmith)
+            } else {
+                None
+            }
         });
 
-        cmd.args(args).env("HOME", &self.home_dir);
+        let mut cmd = if let Some(path) = gitsmith_path {
+            let mut cmd = Command::new(path);
+            cmd.args(args);
+            cmd
+        } else {
+            // Try to find Cargo.toml relative to current directory or use cargo from PATH
+            let manifest_path = std::env::current_exe().ok().and_then(|p| {
+                // Go up directories to find workspace root
+                let mut dir = p.parent()?;
+                for _ in 0..5 {
+                    let cargo_toml = dir.join("Cargo.toml");
+                    if cargo_toml.exists() {
+                        return Some(cargo_toml);
+                    }
+                    dir = dir.parent()?;
+                }
+                None
+            });
+
+            let mut cmd = Command::new("cargo");
+            cmd.args(["run", "--bin", "gitsmith", "--"]);
+
+            if let Some(manifest) = manifest_path {
+                cmd.arg("--manifest-path");
+                cmd.arg(manifest);
+            }
+
+            cmd.args(args);
+            cmd
+        };
+
+        cmd.env("HOME", &self.home_dir)
+            .stdout(Stdio::piped())
+            .stderr(Stdio::inherit());
 
         for (key, val) in env {
             cmd.env(key, val);
         }
 
-        let output = cmd.output()?;
+        let output = cmd.output().await?;
+
+        // Capture stdout only (stderr goes directly to terminal)
+        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+
+        // Print stdout for visibility
+        if !stdout.is_empty() {
+            print!("{}", stdout);
+        }
 
         let result = CommandOutput {
-            stdout: String::from_utf8_lossy(&output.stdout).to_string(),
-            stderr: String::from_utf8_lossy(&output.stderr).to_string(),
+            stdout,
+            stderr: String::new(),
             success: output.status.success(),
             _exit_code: output.status.code().unwrap_or(-1),
         };
-
-        if self.verbose && !result.stderr.is_empty() {
-            println!("      stderr: {}", result.stderr.trim());
-        }
 
         Ok(result)
     }

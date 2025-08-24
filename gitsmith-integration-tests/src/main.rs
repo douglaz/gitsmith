@@ -10,14 +10,14 @@ mod tests;
 
 use cli::Cli;
 use relay::RelayManager;
-use tests::{account, pull_request, repository, sync};
+use tests::{account, public_relay, pull_request, repository, sync};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
     // Initialize tracing subscriber - output to stderr
-    let filter = if cli.verbose {
+    let filter = if true {
         "gitsmith_integration_tests=debug,gitsmith=debug"
     } else {
         "gitsmith_integration_tests=info,gitsmith=info"
@@ -35,7 +35,7 @@ async fn main() -> Result<()> {
     let (_relay_manager, base_relay_list) = if !cli.skip_relay_setup {
         println!("{}", "🔌 Setting up test relay...".cyan());
         info!("Starting local relay manager");
-        let manager = RelayManager::start(cli.verbose).await?;
+        let manager = RelayManager::start().await?;
         let url = manager.get_url();
         info!("Relay ready at {}", url);
         println!("  ✓ Relay started at {}", url.green());
@@ -44,8 +44,6 @@ async fn main() -> Result<()> {
         info!("Skipping relay setup (--skip-relay-setup flag)");
         (None, Vec::new())
     };
-
-    let verbose = cli.verbose;
 
     match cli.command {
         cli::Commands::All {
@@ -63,7 +61,7 @@ async fn main() -> Result<()> {
                 );
             }
 
-            run_all_tests(verbose, keep_temp, &relay_list).await
+            run_all_tests(keep_temp, &relay_list).await
         }
         cli::Commands::Account {
             keep_temp,
@@ -76,7 +74,7 @@ async fn main() -> Result<()> {
                     "No relay URLs available. Either start the local relay or provide --relay URLs"
                 );
             }
-            run_account_tests(verbose, keep_temp, &relay_list).await
+            run_account_tests(keep_temp).await
         }
         cli::Commands::Repo {
             keep_temp,
@@ -89,7 +87,7 @@ async fn main() -> Result<()> {
                     "No relay URLs available. Either start the local relay or provide --relay URLs"
                 );
             }
-            run_repository_tests(verbose, keep_temp, &relay_list).await
+            run_repository_tests(keep_temp, &relay_list).await
         }
         cli::Commands::Pr {
             keep_temp,
@@ -102,7 +100,7 @@ async fn main() -> Result<()> {
                     "No relay URLs available. Either start the local relay or provide --relay URLs"
                 );
             }
-            run_pr_tests(verbose, keep_temp, &relay_list).await
+            run_pr_tests(keep_temp, &relay_list).await
         }
         cli::Commands::Sync {
             keep_temp,
@@ -115,12 +113,23 @@ async fn main() -> Result<()> {
                     "No relay URLs available. Either start the local relay or provide --relay URLs"
                 );
             }
-            run_sync_tests(verbose, keep_temp, &relay_list).await
+            run_sync_tests(keep_temp, &relay_list).await
+        }
+        cli::Commands::PublicRelay {
+            keep_temp,
+            relays,
+            max_wait_minutes,
+        } => {
+            // Public relay tests don't use local relay
+            if relays.is_empty() {
+                anyhow::bail!("Public relay tests require at least one --relay URL");
+            }
+            run_public_relay_tests(keep_temp, &relays, max_wait_minutes).await
         }
     }
 }
 
-async fn run_all_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
+async fn run_all_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "🧪 Running all GitSmith integration tests...".bold());
     println!();
 
@@ -129,28 +138,28 @@ async fn run_all_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Res
 
     // Account tests
     println!("{}", "📝 Account Management Tests".blue().bold());
-    let (passed, failed) = account::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = account::run_tests(keep_temp).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
     // Repository tests
     println!();
     println!("{}", "📁 Repository Initialization Tests".blue().bold());
-    let (passed, failed) = repository::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = repository::run_tests(keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
     // PR tests
     println!();
     println!("{}", "🔀 Pull Request Workflow Tests".blue().bold());
-    let (passed, failed) = pull_request::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = pull_request::run_tests(keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
     // Sync tests
     println!();
     println!("{}", "🔄 List and Sync Tests".blue().bold());
-    let (passed, failed) = sync::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = sync::run_tests(keep_temp, relays).await?;
     total_tests += passed + failed;
     failed_tests += failed;
 
@@ -176,33 +185,48 @@ async fn run_all_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Res
     Ok(())
 }
 
-async fn run_account_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
+async fn run_account_tests(keep_temp: bool) -> Result<()> {
     println!("{}", "📝 Running Account Management Tests".blue().bold());
-    let (passed, failed) = account::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = account::run_tests(keep_temp).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
 
-async fn run_repository_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
+async fn run_repository_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
     println!(
         "{}",
         "📁 Running Repository Initialization Tests".blue().bold()
     );
-    let (passed, failed) = repository::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = repository::run_tests(keep_temp, relays).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
 
-async fn run_pr_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
+async fn run_pr_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "🔀 Running Pull Request Workflow Tests".blue().bold());
-    let (passed, failed) = pull_request::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = pull_request::run_tests(keep_temp, relays).await?;
     print_test_summary(passed, failed);
     Ok(())
 }
 
-async fn run_sync_tests(verbose: bool, keep_temp: bool, relays: &[String]) -> Result<()> {
+async fn run_sync_tests(keep_temp: bool, relays: &[String]) -> Result<()> {
     println!("{}", "🔄 Running List and Sync Tests".blue().bold());
-    let (passed, failed) = sync::run_tests(verbose, keep_temp, relays).await?;
+    let (passed, failed) = sync::run_tests(keep_temp, relays).await?;
+    print_test_summary(passed, failed);
+    Ok(())
+}
+
+async fn run_public_relay_tests(
+    keep_temp: bool,
+    relays: &[String],
+    max_wait_minutes: u64,
+) -> Result<()> {
+    println!("{}", "🌐 Running Public Relay Tests".blue().bold());
+    println!("  Maximum wait time: {} minutes", max_wait_minutes);
+    println!("  Testing with relay(s): {}", relays.join(", "));
+    println!();
+
+    let (passed, failed) = public_relay::run_tests(keep_temp, relays, max_wait_minutes).await?;
     print_test_summary(passed, failed);
     Ok(())
 }

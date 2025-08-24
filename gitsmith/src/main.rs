@@ -1,4 +1,4 @@
-use anyhow::{Context, Result, bail, ensure};
+use anyhow::{Context, Result, ensure};
 use clap::{Parser, Subcommand, ValueEnum};
 use gitsmith_core::{
     PublishConfig, RepoAnnouncement, announce_repository, detect_from_git, get_git_state,
@@ -6,6 +6,7 @@ use gitsmith_core::{
 };
 use nostr_sdk::nostr::{Keys, ToBech32};
 use std::path::PathBuf;
+use tracing_subscriber::EnvFilter;
 
 mod commands;
 
@@ -139,6 +140,15 @@ enum OutputFormat {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    // Initialize tracing with RUST_LOG environment variable support
+    // Output to stderr to keep stdout clean for JSON output
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn")),
+        )
+        .with_writer(std::io::stderr)
+        .init();
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -226,18 +236,8 @@ async fn main() -> Result<()> {
                 "Root commit could not be detected. Please specify --root-commit"
             );
 
-            // Clean up private key (remove nsec prefix if present)
-            let clean_private_key = if private_key.starts_with("nsec") {
-                // TODO: Properly decode nsec bech32
-                bail!(
-                    "nsec bech32 format not yet supported. Please provide private key in hex format"
-                );
-            } else {
-                private_key
-            };
-
-            // Get the npub of the person initializing
-            let keys = Keys::parse(&clean_private_key).context("Failed to parse private key")?;
+            // Parse the private key (supports both nsec bech32 and hex format)
+            let keys = Keys::parse(&private_key).context("Failed to parse private key")?;
             let owner_npub = keys
                 .public_key()
                 .to_bech32()
@@ -249,7 +249,7 @@ async fn main() -> Result<()> {
                 wait_for_send: true,
             };
 
-            let result = announce_repository(announcement.clone(), &clean_private_key, config)
+            let result = announce_repository(announcement.clone(), &private_key, config)
                 .await
                 .context("Failed to announce repository")?;
 
