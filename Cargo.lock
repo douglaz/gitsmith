@@ -752,6 +752,7 @@ dependencies = [
  "assert_cmd",
  "clap",
  "colored",
+ "nostr-sdk",
  "predicates",
  "regex",
  "serde",

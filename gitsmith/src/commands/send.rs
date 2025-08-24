@@ -148,6 +148,9 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
 
     // Send events with a small delay between them to avoid overwhelming public relays
     // This is especially important for multi-patch PRs which create multiple events
+    let mut total_successes = std::collections::HashSet::new();
+    let mut total_failures = std::collections::HashMap::new();
+
     for (i, event) in events.iter().enumerate() {
         if i > 0 {
             debug!("Waiting 500ms before sending next event to avoid overwhelming relays");
@@ -161,15 +164,45 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
             event.kind,
             event.id
         );
-        client.send_event(event).await?;
+
+        let output = client.send_event(event).await?;
+
+        // Track successes
+        for relay in output.success {
+            total_successes.insert(relay.to_string());
+        }
+
+        // Track failures
+        for (relay, msg) in output.failed {
+            total_failures.insert(relay.to_string(), msg);
+        }
+
         info!("Event {}/{} sent successfully", i + 1, events.len());
     }
 
-    info!(
-        "All events sent successfully to {} relay(s)",
-        repo_announcement.relays.len()
-    );
-    eprintln!("✅ Pull request sent successfully!");
+    // Report results
+    let success_count = total_successes.len();
+    let failure_count = total_failures.len();
+
+    if success_count > 0 {
+        info!("All events sent successfully to {} relay(s)", success_count);
+        eprintln!("✅ Pull request sent to {} relay(s)!", success_count);
+    }
+
+    if failure_count > 0 {
+        warn!(
+            "Failed to send to {} relay(s): {:?}",
+            failure_count, total_failures
+        );
+        eprintln!("⚠️  Failed to send to {} relay(s)", failure_count);
+        for (relay, msg) in &total_failures {
+            eprintln!("   - {}: {}", relay, msg);
+        }
+    }
+
+    if success_count == 0 {
+        anyhow::bail!("Failed to send events to any relay");
+    }
 
     Ok(())
 }

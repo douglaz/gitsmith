@@ -6,10 +6,19 @@ use tokio::process::{Child, Command};
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
 
-/// Manages the lifecycle of a nostr-rs-relay instance for testing
+/// Type of relay to start
+#[derive(Debug, Clone)]
+pub enum RelayType {
+    NostrRsRelay,
+    Strfry,
+}
+
+/// Manages the lifecycle of a relay instance for testing
 pub struct RelayManager {
     process: Option<Child>,
     port: u16,
+    #[allow(dead_code)]
+    relay_type: RelayType,
     #[allow(dead_code)]
     data_dir: Option<tempfile::TempDir>,
     #[allow(dead_code)]
@@ -17,18 +26,49 @@ pub struct RelayManager {
 }
 
 impl RelayManager {
-    /// Start a new relay instance or use existing one if available
+    /// Start a single relay (backward compatibility)
+    #[allow(dead_code)]
     pub async fn start() -> Result<Self> {
-        let port = 7878;
-        debug!("Checking if relay is already running on port {}", port);
+        Self::start_nostr_rs_relay(7878).await
+    }
+
+    /// Start multiple relays of different types
+    pub async fn start_multiple() -> Result<Vec<Self>> {
+        let mut managers = Vec::new();
+
+        // Start nostr-rs-relay on port 7878
+        managers.push(Self::start_nostr_rs_relay(7878).await?);
+
+        // Try to start strfry on port 7879, fall back to second nostr-rs-relay if strfry unavailable
+        match Self::start_strfry(7879).await {
+            Ok(manager) => managers.push(manager),
+            Err(e) => {
+                warn!(
+                    "Failed to start strfry: {}. Falling back to second nostr-rs-relay",
+                    e
+                );
+                managers.push(Self::start_nostr_rs_relay(7879).await?);
+            }
+        }
+
+        Ok(managers)
+    }
+
+    /// Start a new nostr-rs-relay instance or use existing one if available
+    pub async fn start_nostr_rs_relay(port: u16) -> Result<Self> {
+        debug!(
+            "Checking if nostr-rs-relay is already running on port {}",
+            port
+        );
 
         // Check if relay is already running
         if Self::is_port_open(port).await {
-            info!("Found existing relay on port {}", port);
-            println!("  ℹ️  Using existing relay on port {port}");
+            info!("Found existing nostr-rs-relay on port {}", port);
+            println!("  ℹ️  Using existing nostr-rs-relay on port {port}");
             return Ok(Self {
                 process: None,
                 port,
+                relay_type: RelayType::NostrRsRelay,
                 data_dir: None,
                 config_path: PathBuf::from("./gitsmith-integration-tests/relay-config.toml"),
             });
@@ -42,15 +82,27 @@ impl RelayManager {
         debug!("Created temp directory at {:?}", data_dir.path());
 
         // Find config file (handle different working directories)
-        let config_path = if PathBuf::from("relay-config.toml").exists() {
-            std::fs::canonicalize("relay-config.toml")
-                .context("Failed to resolve relay-config.toml path")?
-        } else if PathBuf::from("gitsmith-integration-tests/relay-config.toml").exists() {
-            std::fs::canonicalize("gitsmith-integration-tests/relay-config.toml")
-                .context("Failed to resolve gitsmith-integration-tests/relay-config.toml path")?
+        let config_name = if port == 7878 {
+            "relay-config.toml"
+        } else {
+            "relay-config-7879.toml"
+        };
+
+        let config_path = if PathBuf::from(config_name).exists() {
+            std::fs::canonicalize(config_name)
+                .with_context(|| format!("Failed to resolve {} path", config_name))?
+        } else if PathBuf::from(format!("gitsmith-integration-tests/{}", config_name)).exists() {
+            std::fs::canonicalize(format!("gitsmith-integration-tests/{}", config_name))
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve gitsmith-integration-tests/{} path",
+                        config_name
+                    )
+                })?
         } else {
             anyhow::bail!(
-                "Could not find relay-config.toml in current directory or gitsmith-integration-tests/"
+                "Could not find {} in current directory or gitsmith-integration-tests/",
+                config_name
             );
         };
         debug!("Using config file: {:?}", config_path);
@@ -129,6 +181,130 @@ impl RelayManager {
         Ok(Self {
             process: Some(process),
             port,
+            relay_type: RelayType::NostrRsRelay,
+            data_dir: Some(data_dir),
+            config_path,
+        })
+    }
+
+    /// Start a new strfry instance
+    pub async fn start_strfry(port: u16) -> Result<Self> {
+        debug!("Checking if strfry is already running on port {}", port);
+
+        // Check if relay is already running
+        if Self::is_port_open(port).await {
+            info!("Found existing strfry on port {}", port);
+            println!("  ℹ️  Using existing strfry on port {port}");
+            return Ok(Self {
+                process: None,
+                port,
+                relay_type: RelayType::Strfry,
+                data_dir: None,
+                config_path: PathBuf::from("./gitsmith-integration-tests/strfry-config.conf"),
+            });
+        }
+
+        info!("No existing strfry found, starting new instance");
+
+        // Create temp directory for strfry data
+        let data_dir =
+            tempfile::tempdir().context("Failed to create temporary directory for strfry data")?;
+        debug!("Created temp directory at {:?}", data_dir.path());
+
+        // Find config file (handle different working directories)
+        let config_name = "strfry-config.conf";
+        let config_path = if PathBuf::from(config_name).exists() {
+            std::fs::canonicalize(config_name)
+                .with_context(|| format!("Failed to resolve {} path", config_name))?
+        } else if PathBuf::from(format!("gitsmith-integration-tests/{}", config_name)).exists() {
+            std::fs::canonicalize(format!("gitsmith-integration-tests/{}", config_name))
+                .with_context(|| {
+                    format!(
+                        "Failed to resolve gitsmith-integration-tests/{} path",
+                        config_name
+                    )
+                })?
+        } else {
+            anyhow::bail!(
+                "Could not find {} in current directory or gitsmith-integration-tests/",
+                config_name
+            );
+        };
+        debug!("Using config file: {:?}", config_path);
+
+        // Always show relay setup information
+        println!("  🚀 Starting strfry on port {port}...");
+        println!("     Config: {}", config_path.display());
+        println!("     Data: {}", data_dir.path().display());
+        if std::env::var("CI").is_ok() {
+            println!("     Running in CI environment - using extended timeout");
+        }
+
+        // Create database directory inside temp dir
+        let db_dir = data_dir.path().join("strfry-db");
+        std::fs::create_dir_all(&db_dir).context("Failed to create strfry database directory")?;
+
+        // Verify strfry binary exists
+        if let Err(e) = std::process::Command::new("which").arg("strfry").output() {
+            warn!("Failed to locate strfry binary: {}", e);
+            anyhow::bail!("strfry not found. Make sure it's installed (nix develop)");
+        }
+
+        // Start strfry using tokio
+        let mut cmd = Command::new("strfry");
+        cmd.arg(format!("--config={}", config_path.display()))
+            .arg("relay")
+            .env("RUST_LOG", "warn")
+            .current_dir(data_dir.path())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .kill_on_drop(true);
+
+        let mut process = cmd
+            .spawn()
+            .context("Failed to start strfry. Make sure it's installed (nix develop)")?;
+        info!("Started strfry process");
+
+        // Wait for relay to be ready
+        print!("     Waiting for strfry to be ready");
+        debug!("Waiting for strfry to be ready on port {}", port);
+
+        // Try to wait for ready, capturing stderr on failure
+        match Self::wait_for_ready(port).await {
+            Ok(()) => {
+                // Success - consume stderr to avoid broken pipe
+                if let Some(stderr) = process.stderr.take() {
+                    tokio::spawn(async move {
+                        let mut stderr = stderr;
+                        let mut buffer = Vec::new();
+                        let _ = stderr.read_to_end(&mut buffer).await;
+                    });
+                }
+            }
+            Err(e) => {
+                // Capture and log stderr on failure
+                if let Some(mut stderr) = process.stderr.take() {
+                    let mut buffer = Vec::new();
+                    let _ = stderr.read_to_end(&mut buffer).await;
+                    let stderr_output = String::from_utf8_lossy(&buffer);
+                    if !stderr_output.is_empty() {
+                        warn!("Strfry stderr output:\n{}", stderr_output);
+                        eprintln!("❌ Strfry failed to start. Error output:");
+                        eprintln!("{}", stderr_output);
+                    }
+                }
+                // Kill the process before returning error
+                let _ = process.kill().await;
+                return Err(e.context("Strfry failed to become ready"));
+            }
+        }
+        info!("Strfry is ready and accepting connections");
+        println!(" ✓");
+
+        Ok(Self {
+            process: Some(process),
+            port,
+            relay_type: RelayType::Strfry,
             data_dir: Some(data_dir),
             config_path,
         })
@@ -195,6 +371,7 @@ mod tests {
         let manager = RelayManager {
             process: None,
             port: 7878,
+            relay_type: RelayType::NostrRsRelay,
             data_dir: None,
             config_path: PathBuf::from("test.toml"),
         };

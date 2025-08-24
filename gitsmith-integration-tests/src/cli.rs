@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "gitsmith-integration-tests")]
-#[command(about = "Integration test suite for GitSmith")]
+#[command(about = "Integration test suite for gitsmith")]
 #[command(version)]
 pub struct Cli {
     /// Skip automatic relay setup (use existing relay)

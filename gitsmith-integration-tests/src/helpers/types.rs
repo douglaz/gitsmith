@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 /// Pull request structure matching the output from gitsmith list command
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PullRequest {
-    pub id: String,
+    pub id: String, // This is the event ID
     pub title: String,
     pub description: String,
     pub author: String,

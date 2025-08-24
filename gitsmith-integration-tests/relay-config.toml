@@ -2,8 +2,8 @@
 
 [info]
 relay_url = "ws://localhost:7878"
-name = "GitSmith Test Relay"
-description = "Temporary relay for GitSmith integration tests"
+name = "gitsmith Test Relay"
+description = "Temporary relay for gitsmith integration tests"
 pubkey = ""
 contact = ""
 

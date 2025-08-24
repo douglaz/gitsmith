@@ -1,5 +1,5 @@
 {
-  description = "GitSmith - Forge your git repositories on Nostr";
+  description = "gitsmith - Forge your git repositories on Nostr";
 
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
@@ -56,7 +56,7 @@
           buildPhase = ''
             runHook preBuild
             
-            echo "Building GitSmith with musl target for static binary..."
+            echo "Building gitsmith with musl target for static binary..."
             cargo build \
               --release \
               --target x86_64-unknown-linux-musl \
@@ -125,8 +125,9 @@
             pkgsStatic.stdenv.cc
             pkgsStatic.openssl
             
-            # Nostr relay for integration tests
+            # Nostr relays for integration tests
             nostr-rs-relay
+            strfry
           ];
           
           RUST_BACKTRACE = 1;
@@ -147,7 +148,7 @@
               fi
             fi
             
-            echo "🔨 GitSmith development environment"
+            echo "🔨 gitsmith development environment"
             echo "Rust version: $(rustc --version)"
             echo ""
             echo "Available commands:"

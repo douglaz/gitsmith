@@ -218,7 +218,7 @@ jobs:
     - name: Create release notes
       run: |
         cat > release-notes.md << EOF
-        ## GitSmith Latest Build (master branch)
+        ## gitsmith Latest Build (master branch)
         
         **Build Date:** $(date +'%Y-%m-%d %H:%M:%S UTC')
         **Commit:** ${{ steps.sha.outputs.sha_short }}
@@ -275,7 +275,7 @@ jobs:
         
         ### Features
         
-        GitSmith is a non-interactive CLI tool for publishing git repositories to the Nostr protocol:
+        gitsmith is a non-interactive CLI tool for publishing git repositories to the Nostr protocol:
         
         - **NIP-34 Compatible**: Implements the Nostr git specification
         - **Non-interactive**: Perfect for CI/CD pipelines
