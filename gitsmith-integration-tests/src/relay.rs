@@ -1,9 +1,10 @@
 use anyhow::{Context, Result};
 use std::path::PathBuf;
 use std::time::Duration;
+use tokio::io::AsyncReadExt;
 use tokio::process::{Child, Command};
 use tokio::time::sleep;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 /// Manages the lifecycle of a nostr-rs-relay instance for testing
 pub struct RelayManager {
@@ -44,9 +45,11 @@ impl RelayManager {
 
         // Find config file (handle different working directories)
         let config_path = if PathBuf::from("relay-config.toml").exists() {
-            PathBuf::from("relay-config.toml")
+            std::fs::canonicalize("relay-config.toml")
+                .context("Failed to resolve relay-config.toml path")?
         } else if PathBuf::from("gitsmith-integration-tests/relay-config.toml").exists() {
-            PathBuf::from("gitsmith-integration-tests/relay-config.toml")
+            std::fs::canonicalize("gitsmith-integration-tests/relay-config.toml")
+                .context("Failed to resolve gitsmith-integration-tests/relay-config.toml path")?
         } else {
             anyhow::bail!(
                 "Could not find relay-config.toml in current directory or gitsmith-integration-tests/"
@@ -54,15 +57,26 @@ impl RelayManager {
         };
         debug!("Using config file: {:?}", config_path);
 
-        if verbose {
+        if verbose || std::env::var("CI").is_ok() {
             println!("  🚀 Starting nostr-rs-relay on port {port}...");
             println!("     Config: {}", config_path.display());
             println!("     Data: {}", data_dir.path().display());
+            if std::env::var("CI").is_ok() {
+                println!("     Running in CI environment - using extended timeout");
+            }
         }
 
         // Create database directory inside temp dir
         let db_dir = data_dir.path().join("test-relay-data");
         std::fs::create_dir_all(&db_dir).context("Failed to create database directory")?;
+
+        // Verify relay binary exists
+        if let Err(e) = std::process::Command::new("which")
+            .arg("nostr-rs-relay")
+            .output()
+        {
+            warn!("Failed to locate nostr-rs-relay binary: {}", e);
+        }
 
         // Start nostr-rs-relay using tokio
         let mut cmd = Command::new("nostr-rs-relay");
@@ -71,14 +85,10 @@ impl RelayManager {
             .env("RUST_LOG", "warn") // Always use warn to avoid too much output
             .current_dir(data_dir.path())
             .stdout(std::process::Stdio::null()) // Always suppress stdout
-            .stderr(if verbose {
-                std::process::Stdio::inherit()
-            } else {
-                std::process::Stdio::null()
-            })
+            .stderr(std::process::Stdio::piped()) // Capture stderr for error reporting
             .kill_on_drop(true); // Ensure process is killed when dropped
 
-        let process = cmd
+        let mut process = cmd
             .spawn()
             .context("Failed to start nostr-rs-relay. Make sure it's installed (nix develop)")?;
         info!("Started nostr-rs-relay process");
@@ -88,7 +98,36 @@ impl RelayManager {
             print!("     Waiting for relay to be ready");
         }
         debug!("Waiting for relay to be ready on port {}", port);
-        Self::wait_for_ready(port, verbose).await?;
+
+        // Try to wait for ready, capturing stderr on failure
+        match Self::wait_for_ready(port, verbose).await {
+            Ok(()) => {
+                // Success - consume stderr to avoid broken pipe
+                if let Some(stderr) = process.stderr.take() {
+                    tokio::spawn(async move {
+                        let mut stderr = stderr;
+                        let mut buffer = Vec::new();
+                        let _ = stderr.read_to_end(&mut buffer).await;
+                    });
+                }
+            }
+            Err(e) => {
+                // Capture and log stderr on failure
+                if let Some(mut stderr) = process.stderr.take() {
+                    let mut buffer = Vec::new();
+                    let _ = stderr.read_to_end(&mut buffer).await;
+                    let stderr_output = String::from_utf8_lossy(&buffer);
+                    if !stderr_output.is_empty() {
+                        warn!("Relay stderr output:\n{}", stderr_output);
+                        eprintln!("❌ Relay failed to start. Error output:");
+                        eprintln!("{}", stderr_output);
+                    }
+                }
+                // Kill the process before returning error
+                let _ = process.kill().await;
+                return Err(e.context("Relay failed to become ready"));
+            }
+        }
         info!("Relay is ready and accepting connections");
         if verbose {
             println!(" ✓");
@@ -111,16 +150,25 @@ impl RelayManager {
 
     /// Wait for the relay to be ready to accept connections
     async fn wait_for_ready(port: u16, verbose: bool) -> Result<()> {
-        for i in 0..30 {
+        // CI environments may be slower, so use a longer timeout
+        let timeout_seconds = if std::env::var("CI").is_ok() { 60 } else { 30 };
+
+        for i in 0..timeout_seconds {
             if Self::is_port_open(port).await {
                 return Ok(());
             }
             if verbose && i > 0 && i % 5 == 0 {
                 print!(".");
             }
-            sleep(Duration::from_secs(1)).await;
+            // Use exponential backoff for the first few attempts
+            let delay = if i < 5 {
+                Duration::from_millis(100 * (2_u64.pow(i as u32)))
+            } else {
+                Duration::from_secs(1)
+            };
+            sleep(delay).await;
         }
-        anyhow::bail!("Relay failed to start within 30 seconds")
+        anyhow::bail!("Relay failed to start within {} seconds", timeout_seconds)
     }
 
     /// Get the WebSocket URL for the relay
