@@ -201,24 +201,22 @@ impl GitSmithMcpServer {
 
     /// Start the MCP server
     pub async fn run(self) -> Result<()> {
-        // Initialize tracing only if not in test mode
-        let log_level = std::env::var("RUST_LOG").unwrap_or_else(|_| "info".to_string());
-        if log_level != "error" {
-            tracing_subscriber::fmt()
-                .with_env_filter(
-                    tracing_subscriber::EnvFilter::from_default_env()
-                        .add_directive(tracing::Level::INFO.into()),
-                )
-                .init();
+        // Initialize tracing to write to stderr so it doesn't interfere with stdio transport
+        // This allows MCP protocol JSON-RPC messages on stdout to remain clean
+        // Only initialize if not already initialized (e.g., by main.rs)
+        let _ = tracing_subscriber::fmt()
+            .with_writer(std::io::stderr)
+            .with_env_filter(
+                tracing_subscriber::EnvFilter::from_default_env()
+                    .add_directive(tracing::Level::INFO.into()),
+            )
+            .try_init();
 
-            info!("Starting gitsmith MCP server");
-        }
+        info!("Starting gitsmith MCP server");
 
         match self.config.transport {
             Transport::Stdio => {
-                if log_level != "error" {
-                    info!("Starting MCP server with stdio transport");
-                }
+                info!("Starting MCP server with stdio transport");
                 let service = self.serve(stdio()).await?;
                 service.waiting().await?;
             }

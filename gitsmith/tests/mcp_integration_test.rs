@@ -35,10 +35,9 @@ struct McpTestClient {
 impl McpTestClient {
     /// Start the MCP server and create a test client
     fn new() -> Result<Self> {
-        // Set RUST_LOG to error to avoid info logs interfering with JSON parsing
+        // Logs now go to stderr automatically, so stdout remains clean for JSON-RPC protocol
         let mut process = Command::new("cargo")
             .args(["run", "--", "mcp-server", "-t", "stdio"])
-            .env("RUST_LOG", "error")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::inherit())
