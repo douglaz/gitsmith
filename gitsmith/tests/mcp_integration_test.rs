@@ -125,7 +125,7 @@ impl McpTestClient {
         )?;
 
         if response.error.is_some() {
-            bail!("Failed to initialize: {:?}", response.error);
+            bail!("Failed to initialize: {error:?}", error = response.error);
         }
 
         // Send initialized notification

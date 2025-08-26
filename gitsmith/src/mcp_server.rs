@@ -445,7 +445,7 @@ impl GitSmithMcpServer {
         let client = Client::new(Keys::generate());
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {}: {}", relay_url, e);
+                tracing::warn!("Failed to add relay {relay_url}: {e}");
             }
         }
 
@@ -564,7 +564,7 @@ impl GitSmithMcpServer {
         let client = Client::new(keys.clone());
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {}: {}", relay_url, e);
+                tracing::warn!("Failed to add relay {relay_url}: {e}");
             }
         }
 
@@ -580,7 +580,7 @@ impl GitSmithMcpServer {
                         successes.push(relay.to_string());
                     }
                     for (relay, msg) in output.failed {
-                        failures.push(format!("{}: {}", relay, msg));
+                        failures.push(format!("{relay}: {msg}"));
                     }
                 }
                 Err(e) => failures.push(format!("Failed to send event: {e}")),
@@ -592,7 +592,7 @@ impl GitSmithMcpServer {
                 "success": true,
                 "successes": successes,
                 "failures": failures,
-                "message": format!("PR sent to {} relay(s)", successes.len())
+                "message": format!("PR sent to {count} relay(s)", count = successes.len())
             })
             .to_string(),
         )])
@@ -691,7 +691,7 @@ impl GitSmithMcpServer {
         let client = Client::new(keys);
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {}: {}", relay_url, e);
+                tracing::warn!("Failed to add relay {relay_url}: {e}");
             }
         }
 
@@ -779,7 +779,7 @@ impl GitSmithMcpServer {
         let client = Client::new(keys.clone());
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {}: {}", relay_url, e);
+                tracing::warn!("Failed to add relay {relay_url}: {e}");
             }
         }
 
@@ -811,7 +811,7 @@ impl GitSmithMcpServer {
                         successes.push(relay.to_string());
                     }
                     for (relay, msg) in output.failed {
-                        failures.push(format!("{}: {}", relay, msg));
+                        failures.push(format!("{relay}: {msg}"));
                     }
                 }
                 Err(e) => failures.push(format!("Failed to send event: {e}")),
@@ -823,7 +823,7 @@ impl GitSmithMcpServer {
                 "success": true,
                 "successes": successes,
                 "failures": failures,
-                "message": format!("Patches sent to {} relay(s)", successes.len())
+                "message": format!("Patches sent to {count} relay(s)", count = successes.len())
             })
             .to_string(),
         )])
@@ -1445,7 +1445,7 @@ impl ServerHandler for GitSmithMcpServer {
                 Ok(self.patch_generate(req).await)
             }
             _ => Err(McpError::invalid_request(
-                format!("Tool '{}' not found", request.name),
+                format!("Tool '{name}' not found", name = request.name),
                 None,
             )),
         }
