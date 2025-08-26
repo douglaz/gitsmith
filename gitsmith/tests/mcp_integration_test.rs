@@ -41,7 +41,7 @@ impl McpTestClient {
             .env("RUST_LOG", "error")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null())
+            .stderr(Stdio::inherit())
             .spawn()
             .context("Failed to spawn MCP server")?;
 
