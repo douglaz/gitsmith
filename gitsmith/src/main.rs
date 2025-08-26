@@ -9,6 +9,7 @@ use std::path::PathBuf;
 use tracing_subscriber::EnvFilter;
 
 mod commands;
+mod mcp_server;
 
 #[derive(Parser)]
 #[command(name = "gitsmith")]
@@ -36,6 +37,14 @@ enum Commands {
 
     /// Sync repository state
     Sync(commands::sync::SyncArgs),
+
+    /// Run MCP server for AI assistant integration
+    #[command(name = "mcp-server")]
+    McpServer {
+        /// Transport type (stdio or sse)
+        #[arg(short = 't', long, default_value = "stdio")]
+        transport: String,
+    },
 
     /// Initialize and announce a repository on Nostr
     Init {
@@ -358,6 +367,26 @@ async fn main() -> Result<()> {
                 }
             }
 
+            Ok(())
+        }
+
+        Commands::McpServer { transport } => {
+            let config = match transport.as_str() {
+                "stdio" => mcp_server::McpServerConfig {
+                    transport: mcp_server::Transport::Stdio,
+                    ..Default::default()
+                },
+                "sse" => mcp_server::McpServerConfig {
+                    transport: mcp_server::Transport::Sse,
+                    ..Default::default()
+                },
+                _ => {
+                    anyhow::bail!("Invalid transport: {}. Use 'stdio' or 'sse'", transport);
+                }
+            };
+
+            let server = mcp_server::GitSmithMcpServer::new(config);
+            server.run().await?;
             Ok(())
         }
     }

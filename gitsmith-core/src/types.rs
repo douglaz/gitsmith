@@ -26,7 +26,7 @@ pub struct PublishResult {
 }
 
 /// Git state for Kind 30618 events
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GitState {
     pub identifier: String,
     pub refs: HashMap<String, String>, // ref_name -> commit_hash
