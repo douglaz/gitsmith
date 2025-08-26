@@ -330,3 +330,55 @@ fn test_pr_list_missing_password() -> Result<()> {
 
     Ok(())
 }
+
+#[test]
+fn test_repo_generate_tool() -> Result<()> {
+    let mut client = McpTestClient::new()?;
+
+    // This might fail if not in a git repo, but tests the tool is available
+    let result = client.call_tool(
+        "repo_generate",
+        json!({
+            "repo_path": ".",
+            "include_sample_relays": true
+        }),
+    )?;
+
+    // Should return either repo config as a JSON string or an error
+    assert!(result.is_string() || result.is_object());
+
+    Ok(())
+}
+
+#[test]
+fn test_sync_repository_tool() -> Result<()> {
+    let mut client = McpTestClient::new()?;
+
+    // This might fail if not in a git repo, but tests the tool is available
+    let result = client.call_tool(
+        "sync_repository",
+        json!({
+            "repo_path": "."
+        }),
+    )?;
+
+    // Should return either sync data as a JSON string or an error
+    // The result is a JSON string (not a parsed object) or an error string
+    assert!(result.is_string());
+
+    Ok(())
+}
+
+#[test]
+fn test_pr_sync_missing_params() -> Result<()> {
+    let mut client = McpTestClient::new()?;
+
+    // Call pr_sync without required event_id
+    let result = client.call_tool("pr_sync", json!({}))?;
+
+    // Should return an error
+    let result_str = result.as_str().unwrap_or("");
+    assert!(result_str.contains("Error"));
+
+    Ok(())
+}

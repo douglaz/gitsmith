@@ -19,6 +19,7 @@ use serde::Deserialize;
 use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::info;
 
@@ -144,7 +145,6 @@ pub struct PrListRequest {
 }
 
 #[derive(Debug, Deserialize, schemars::JsonSchema)]
-#[allow(dead_code)]
 pub struct PrSyncRequest {
     #[schemars(description = "PR event ID")]
     pub event_id: String,
@@ -152,6 +152,22 @@ pub struct PrSyncRequest {
     pub repo_path: Option<String>,
     #[schemars(description = "Password for account")]
     pub password: String,
+}
+
+// Sync tool request
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct SyncRepositoryRequest {
+    #[schemars(description = "Repository path")]
+    pub repo_path: Option<String>,
+}
+
+// Generate tool request
+#[derive(Debug, Deserialize, schemars::JsonSchema)]
+pub struct RepoGenerateRequest {
+    #[schemars(description = "Repository path")]
+    pub repo_path: Option<String>,
+    #[schemars(description = "Include sample relays")]
+    pub include_sample_relays: Option<bool>,
 }
 
 // Patch tool requests
@@ -360,6 +376,118 @@ impl GitSmithMcpServer {
         }
     }
 
+    #[tool(description = "Generate repository configuration")]
+    async fn repo_generate(&self, req: RepoGenerateRequest) -> CallToolResult {
+        let repo_path = req
+            .repo_path
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        match detect_from_git(&repo_path) {
+            Ok(mut announcement) => {
+                // Add sample relays if requested
+                if req.include_sample_relays.unwrap_or(false) {
+                    announcement.relays = vec![
+                        "wss://relay.damus.io".to_string(),
+                        "wss://nos.lol".to_string(),
+                        "wss://relay.nostr.band".to_string(),
+                    ];
+                }
+
+                CallToolResult::success(vec![Content::text(
+                    serde_json::to_string_pretty(&announcement).unwrap_or_else(|e| e.to_string()),
+                )])
+            }
+            Err(e) => CallToolResult::error(vec![Content::text(format!("Error: {e}"))]),
+        }
+    }
+
+    #[tool(description = "Sync repository state from Nostr relays")]
+    async fn sync_repository(&self, req: SyncRepositoryRequest) -> CallToolResult {
+        let repo_path = req
+            .repo_path
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        // Get repository info
+        let repo_announcement = match detect_from_git(&repo_path) {
+            Ok(a) => a,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Failed to detect repository: {e}"
+                ))]);
+            }
+        };
+
+        // Get local git state
+        let local_state = match repo::get_git_state(&repo_path, &repo_announcement.identifier) {
+            Ok(s) => s,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Failed to get local git state: {e}"
+                ))]);
+            }
+        };
+
+        // If no relays configured, just return local state
+        if repo_announcement.relays.is_empty() {
+            return CallToolResult::success(vec![Content::text(
+                serde_json::json!({
+                    "repository": repo_announcement.name,
+                    "identifier": repo_announcement.identifier,
+                    "local_state": local_state,
+                    "remote_state": null,
+                    "message": "No relays configured"
+                })
+                .to_string(),
+            )]);
+        }
+
+        // Fetch remote state from relays
+        let client = Client::new(Keys::generate());
+        for relay_url in &repo_announcement.relays {
+            if let Err(e) = client.add_relay(relay_url).await {
+                tracing::warn!("Failed to add relay {}: {}", relay_url, e);
+            }
+        }
+
+        client.connect().await;
+
+        // Create filter for repository state events (Kind 30618)
+        let filter = Filter::new().kind(Kind::from(30618)).custom_tag(
+            SingleLetterTag::lowercase(Alphabet::D),
+            repo_announcement.identifier.clone(),
+        );
+
+        let events = match client.fetch_events(filter, Duration::from_secs(5)).await {
+            Ok(events) => events,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Failed to fetch events from relays: {e}"
+                ))]);
+            }
+        };
+
+        // Parse remote states from events
+        let mut remote_states = vec![];
+        for event in events.into_iter() {
+            if let Ok(content) = serde_json::from_str::<serde_json::Value>(&event.content) {
+                remote_states.push(content);
+            }
+        }
+
+        CallToolResult::success(vec![Content::text(
+            serde_json::json!({
+                "repository": repo_announcement.name,
+                "identifier": repo_announcement.identifier,
+                "local_state": local_state,
+                "remote_states": remote_states,
+                "relay_count": repo_announcement.relays.len()
+            })
+            .to_string(),
+        )])
+    }
+
     // Pull request tools
     #[tool(description = "Send a pull request to Nostr")]
     async fn pr_send(&self, req: PrSendRequest) -> CallToolResult {
@@ -516,6 +644,94 @@ impl GitSmithMcpServer {
             )]),
             Err(e) => CallToolResult::error(vec![Content::text(format!("Error: {e}"))]),
         }
+    }
+
+    #[tool(description = "Sync a specific pull request from Nostr")]
+    async fn pr_sync(&self, req: PrSyncRequest) -> CallToolResult {
+        // Get account keys
+        let keys = match account::get_active_keys(&req.password) {
+            Ok(k) => k,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Failed to get account keys: {e}"
+                ))]);
+            }
+        };
+
+        let repo_path = req
+            .repo_path
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("."));
+
+        // Get repository info
+        let repo_announcement = match detect_from_git(&repo_path) {
+            Ok(a) => a,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Failed to detect repository: {e}"
+                ))]);
+            }
+        };
+
+        if repo_announcement.relays.is_empty() {
+            return CallToolResult::error(vec![Content::text(
+                "No relays configured for repository".to_string(),
+            )]);
+        }
+
+        // Parse event ID
+        let event_id = match EventId::from_hex(&req.event_id) {
+            Ok(id) => id,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Invalid event ID: {e}"
+                ))]);
+            }
+        };
+
+        // Connect to relays
+        let client = Client::new(keys);
+        for relay_url in &repo_announcement.relays {
+            if let Err(e) = client.add_relay(relay_url).await {
+                tracing::warn!("Failed to add relay {}: {}", relay_url, e);
+            }
+        }
+
+        client.connect().await;
+
+        // Fetch the specific event
+        let filter = Filter::new().id(event_id);
+
+        let events = match client.fetch_events(filter, Duration::from_secs(5)).await {
+            Ok(events) => events,
+            Err(e) => {
+                return CallToolResult::error(vec![Content::text(format!(
+                    "Failed to fetch PR from relays: {e}"
+                ))]);
+            }
+        };
+
+        let events_vec: Vec<Event> = events.into_iter().collect();
+
+        if events_vec.is_empty() {
+            return CallToolResult::error(vec![Content::text(
+                "Pull request not found on any relay".to_string(),
+            )]);
+        }
+
+        // Parse the PR event
+        let event = &events_vec[0];
+        let pr_data = serde_json::json!({
+            "id": event.id.to_hex(),
+            "author": event.pubkey.to_hex(),
+            "content": event.content,
+            "created_at": event.created_at.to_human_datetime(),
+            "tags": event.tags,
+        });
+
+        CallToolResult::success(vec![Content::text(
+            serde_json::to_string_pretty(&pr_data).unwrap_or_else(|e| e.to_string()),
+        )])
     }
 
     // Patch tools
@@ -793,6 +1009,36 @@ impl ServerHandler for GitSmithMcpServer {
                     "required": ["identifier"]
                 }),
             ),
+            create_tool(
+                "repo_generate",
+                "Generate repository configuration",
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "repo_path": {
+                            "type": "string",
+                            "description": "Repository path"
+                        },
+                        "include_sample_relays": {
+                            "type": "boolean",
+                            "description": "Include sample relay URLs"
+                        }
+                    }
+                }),
+            ),
+            create_tool(
+                "sync_repository",
+                "Sync repository state from Nostr relays",
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "repo_path": {
+                            "type": "string",
+                            "description": "Repository path"
+                        }
+                    }
+                }),
+            ),
             // Pull request tools
             create_tool(
                 "pr_send",
@@ -848,6 +1094,28 @@ impl ServerHandler for GitSmithMcpServer {
                         }
                     },
                     "required": ["password"]
+                }),
+            ),
+            create_tool(
+                "pr_sync",
+                "Sync a specific pull request from Nostr",
+                serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "event_id": {
+                            "type": "string",
+                            "description": "PR event ID"
+                        },
+                        "repo_path": {
+                            "type": "string",
+                            "description": "Repository path"
+                        },
+                        "password": {
+                            "type": "string",
+                            "description": "Password for account"
+                        }
+                    },
+                    "required": ["event_id", "password"]
                 }),
             ),
             // Patch tools
@@ -1039,6 +1307,29 @@ impl ServerHandler for GitSmithMcpServer {
                     })
                     .await)
             }
+            "repo_generate" => {
+                let repo_path = args
+                    .get("repo_path")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                let include_sample_relays =
+                    args.get("include_sample_relays").and_then(|v| v.as_bool());
+                Ok(self
+                    .repo_generate(RepoGenerateRequest {
+                        repo_path,
+                        include_sample_relays,
+                    })
+                    .await)
+            }
+            "sync_repository" => {
+                let repo_path = args
+                    .get("repo_path")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+                Ok(self
+                    .sync_repository(SyncRepositoryRequest { repo_path })
+                    .await)
+            }
             "pr_send" => {
                 let req = PrSendRequest {
                     title: args
@@ -1094,6 +1385,29 @@ impl ServerHandler for GitSmithMcpServer {
                         .to_string(),
                 };
                 Ok(self.pr_list(req).await)
+            }
+            "pr_sync" => {
+                let req = PrSyncRequest {
+                    event_id: args
+                        .get("event_id")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            McpError::invalid_request("event_id parameter required", None)
+                        })?
+                        .to_string(),
+                    repo_path: args
+                        .get("repo_path")
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.to_string()),
+                    password: args
+                        .get("password")
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| {
+                            McpError::invalid_request("password parameter required", None)
+                        })?
+                        .to_string(),
+                };
+                Ok(self.pr_sync(req).await)
             }
             "patch_send" => {
                 let req = PatchSendRequest {
