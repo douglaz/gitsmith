@@ -21,7 +21,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
-use tracing::info;
+use tracing::{info, warn};
 
 /// Configuration for the MCP server
 #[derive(Debug, Clone)]
@@ -216,7 +216,7 @@ impl GitSmithMcpServer {
 
         match self.config.transport {
             Transport::Stdio => {
-                info!("Starting MCP server with stdio transport");
+                info!(transport = "stdio", "Starting MCP server");
                 let service = self.serve(stdio()).await?;
                 service.waiting().await?;
             }
@@ -445,7 +445,7 @@ impl GitSmithMcpServer {
         let client = Client::new(Keys::generate());
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {relay_url}: {e}");
+                warn!(%relay_url, error = %e, "Failed to add relay");
             }
         }
 
@@ -564,7 +564,7 @@ impl GitSmithMcpServer {
         let client = Client::new(keys.clone());
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {relay_url}: {e}");
+                warn!(%relay_url, error = %e, "Failed to add relay");
             }
         }
 
@@ -691,7 +691,7 @@ impl GitSmithMcpServer {
         let client = Client::new(keys);
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {relay_url}: {e}");
+                warn!(%relay_url, error = %e, "Failed to add relay");
             }
         }
 
@@ -779,7 +779,7 @@ impl GitSmithMcpServer {
         let client = Client::new(keys.clone());
         for relay_url in &repo_announcement.relays {
             if let Err(e) = client.add_relay(relay_url).await {
-                tracing::warn!("Failed to add relay {relay_url}: {e}");
+                warn!(%relay_url, error = %e, "Failed to add relay");
             }
         }
 

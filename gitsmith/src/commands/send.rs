@@ -35,10 +35,7 @@ pub struct SendArgs {
 }
 
 pub async fn handle_send_command(args: SendArgs) -> Result<()> {
-    info!(
-        "Starting send command for repository: {}",
-        args.repo_path.display()
-    );
+    info!(repository = %args.repo_path.display(), "Starting send command for repository");
 
     // Get account keys
     debug!("Getting account keys");
@@ -53,24 +50,18 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     info!("Account keys loaded successfully");
 
     // Get repository info
-    debug!(
-        "Detecting repository info from: {}",
-        args.repo_path.display()
-    );
+    debug!(path = %args.repo_path.display(), "Detecting repository info");
     let repo_announcement = gitsmith_core::detect_from_git(&args.repo_path)?;
-    info!(
-        "Repository detected: {} ({})",
-        repo_announcement.name, repo_announcement.identifier
-    );
+    info!(name = %repo_announcement.name, identifier = %repo_announcement.identifier, "Repository detected");
 
     // Generate patches
     eprintln!("Generating patches from {since}...", since = args.since);
-    debug!("Generating patches from commit range: {}", args.since);
+    debug!(since = %args.since, "Generating patches from commit range");
     let patches = patches::generate_patches(&args.repo_path, Some(&args.since), None)?;
-    info!("Generated {} patch(es) from commits", patches.len());
+    info!(count = patches.len(), "Generated patches from commits");
 
     if patches.is_empty() {
-        warn!("No patches to send - no commits in range {}", args.since);
+        warn!(since = %args.since, "No patches to send - no commits in range");
         eprintln!("No patches to send");
         return Ok(());
     }
@@ -104,10 +95,10 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         pubkey = keys.public_key(),
         identifier = repo_announcement.identifier
     );
-    debug!("Repository coordinate: {}", repo_coordinate);
+    debug!(coordinate = %repo_coordinate, "Repository coordinate created");
 
     // Create PR events
-    debug!("Creating PR events with title: '{}'", title);
+    debug!(title = %title, "Creating PR events");
     let events = patches::create_pull_request_event(
         &keys,
         &repo_coordinate,
@@ -118,7 +109,10 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         args.in_reply_to,
     )?;
 
-    info!("Created {} events (patch events + PR event)", events.len());
+    info!(
+        count = events.len(),
+        "Created events (patch events + PR event)"
+    );
     eprintln!("Created {count} events", count = events.len());
 
     // Send to relays
@@ -129,16 +123,19 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
         return Ok(());
     }
 
-    debug!("Configured relays: {:?}", repo_announcement.relays);
+    debug!(relays = ?repo_announcement.relays, "Configured relays");
 
     let client = Client::new(keys.clone());
 
     for relay_url in &repo_announcement.relays {
-        debug!("Adding relay: {}", relay_url);
+        debug!(%relay_url, "Adding relay");
         client.add_relay(relay_url).await?;
     }
 
-    info!("Connecting to {} relay(s)", repo_announcement.relays.len());
+    info!(
+        count = repo_announcement.relays.len(),
+        "Connecting to relays"
+    );
     client.connect().await;
 
     eprintln!(
@@ -153,17 +150,14 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
 
     for (i, event) in events.iter().enumerate() {
         if i > 0 {
-            debug!("Waiting 500ms before sending next event to avoid overwhelming relays");
+            debug!(
+                delay_ms = 500,
+                "Waiting before sending next event to avoid overwhelming relays"
+            );
             // Add a 500ms delay between events to give relays time to process
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
         }
-        debug!(
-            "Sending event {}/{}: kind={}, id={}",
-            i + 1,
-            events.len(),
-            event.kind,
-            event.id
-        );
+        debug!(event_num = i + 1, total = events.len(), kind = %event.kind, id = %event.id, "Sending event");
 
         let output = client.send_event(event).await?;
 
@@ -177,7 +171,11 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
             total_failures.insert(relay.to_string(), msg);
         }
 
-        info!("Event {}/{} sent successfully", i + 1, events.len());
+        info!(
+            event_num = i + 1,
+            total = events.len(),
+            "Event sent successfully"
+        );
     }
 
     // Report results
@@ -185,15 +183,15 @@ pub async fn handle_send_command(args: SendArgs) -> Result<()> {
     let failure_count = total_failures.len();
 
     if success_count > 0 {
-        info!("All events sent successfully to {} relay(s)", success_count);
+        info!(
+            relay_count = success_count,
+            "All events sent successfully to relays"
+        );
         eprintln!("✅ Pull request sent to {} relay(s)!", success_count);
     }
 
     if failure_count > 0 {
-        warn!(
-            "Failed to send to {} relay(s): {:?}",
-            failure_count, total_failures
-        );
+        warn!(failure_count, failures = ?total_failures, "Failed to send to some relays");
         eprintln!("⚠️  Failed to send to {} relay(s)", failure_count);
         for (relay, msg) in &total_failures {
             eprintln!("   - {}: {}", relay, msg);
