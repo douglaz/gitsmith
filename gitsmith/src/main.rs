@@ -6,9 +6,21 @@ use gitsmith_core::{
 };
 use nostr_sdk::nostr::{Keys, ToBech32};
 use std::path::PathBuf;
+use strum::{Display, EnumString};
 use tracing_subscriber::EnvFilter;
 
 mod commands;
+mod mcp_server;
+
+/// Transport type for MCP server
+#[derive(Debug, Clone, Copy, ValueEnum, Display, EnumString)]
+#[strum(serialize_all = "lowercase")]
+enum TransportType {
+    /// Standard input/output transport
+    Stdio,
+    /// Server-Sent Events transport
+    Sse,
+}
 
 #[derive(Parser)]
 #[command(name = "gitsmith")]
@@ -36,6 +48,14 @@ enum Commands {
 
     /// Sync repository state
     Sync(commands::sync::SyncArgs),
+
+    /// Run MCP server for AI assistant integration
+    #[command(name = "mcp-server")]
+    McpServer {
+        /// Transport type (stdio or sse)
+        #[arg(short = 't', long, default_value = "stdio", value_enum)]
+        transport: TransportType,
+    },
 
     /// Initialize and announce a repository on Nostr
     Init {
@@ -358,6 +378,20 @@ async fn main() -> Result<()> {
                 }
             }
 
+            Ok(())
+        }
+
+        Commands::McpServer { transport } => {
+            let config = mcp_server::McpServerConfig {
+                transport: match transport {
+                    TransportType::Stdio => mcp_server::Transport::Stdio,
+                    TransportType::Sse => mcp_server::Transport::Sse,
+                },
+                ..Default::default()
+            };
+
+            let server = mcp_server::GitSmithMcpServer::new(config);
+            server.run().await?;
             Ok(())
         }
     }

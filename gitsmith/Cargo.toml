@@ -22,7 +22,19 @@ chrono = "0.4"
 
 # CLI
 clap = { version = "4.5.41", features = ["derive", "env"] }
+strum = { workspace = true }
 
 # Logging
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# MCP Server
+rmcp = { version = "0.6", features = ["server", "transport-io"] }
+schemars = "1.0"
+async-trait = "0.1"
+base64 = "0.22"
+hex = "0.4"
+
+[dev-dependencies]
+rmcp = { version = "0.6", features = ["server", "client", "transport-child-process"] }
+tokio = { version = "1.47", features = ["full", "test-util", "process"] }
