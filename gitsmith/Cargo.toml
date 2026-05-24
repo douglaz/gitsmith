@@ -16,12 +16,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 nostr-sdk = "0.43.0"
-rpassword = "7.3"
+rpassword = "7.5"
 futures = "0.3"
 chrono = "0.4"
 
 # CLI
-clap = { version = "4.5.41", features = ["derive", "env"] }
+clap = { version = "4.5.60", features = ["derive", "env"] }
 strum = { workspace = true }
 
 # Logging
@@ -30,11 +30,11 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 
 # MCP Server
 rmcp = { version = "0.6", features = ["server", "transport-io"] }
-schemars = "1.0"
+schemars = "1.2"
 async-trait = "0.1"
 base64 = "0.22"
 hex = "0.4"
 
 [dev-dependencies]
 rmcp = { version = "0.6", features = ["server", "client", "transport-child-process"] }
-tokio = { version = "1.47", features = ["full", "test-util", "process"] }
+tokio = { version = "1.52", features = ["full", "test-util", "process"] }

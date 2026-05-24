@@ -17,5 +17,5 @@ repository = "https://github.com/douglaz/gitsmith"
 anyhow = "1.0.98"
 serde = { version = "1.0.219", features = ["derive"] }
 serde_json = "1.0.140"
-tokio = { version = "1.46.1", features = ["full"] }
+tokio = { version = "1.52.3", features = ["full"] }
 strum = { version = "0.26", features = ["derive"] }
