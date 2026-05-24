@@ -60,7 +60,7 @@ jobs:
         done
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: gitsmith-linux-binaries
         path: artifacts/*.tar.gz
@@ -119,7 +119,7 @@ jobs:
         done
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: gitsmith-macos-binaries
         path: artifacts/*.tar.gz
@@ -174,7 +174,7 @@ jobs:
         }
     
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: gitsmith-windows-binaries
         path: artifacts/*.zip
