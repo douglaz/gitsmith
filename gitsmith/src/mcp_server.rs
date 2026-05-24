@@ -16,7 +16,6 @@ use rmcp::{
     transport::stdio,
 };
 use serde::Deserialize;
-use std::future::Future;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -855,10 +854,12 @@ impl GitSmithMcpServer {
 fn create_tool(name: &'static str, description: &'static str, schema: serde_json::Value) -> Tool {
     Tool {
         name: name.into(),
+        title: None,
         description: Some(description.into()),
         input_schema: Arc::new(schema.as_object().unwrap().clone()),
         output_schema: None,
         annotations: None,
+        icons: None,
     }
 }
 
