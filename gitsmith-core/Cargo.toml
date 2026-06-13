@@ -14,7 +14,7 @@ strum = { workspace = true }
 
 # Nostr SDK
 nostr = "0.43.1"
-nostr-sdk = "0.43.0"
+nostr-sdk = "0.44.1"
 
 # Git operations
 # Use vendored-openssl to avoid system OpenSSL dependency
