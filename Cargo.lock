@@ -8,7 +8,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d122413f284cf2d62fb1b7db97e02edb8cda96d769b16e443a4f6195e35662b0"
 dependencies = [
- "crypto-common 0.1.6",
+ "crypto-common 0.1.7",
  "generic-array",
 ]
 
@@ -340,7 +340,7 @@ version = "0.4.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "773f3b9af64447d2ce9850330c473515014aa235e6a783b02db81ff39e4a3dad"
 dependencies = [
- "crypto-common 0.1.6",
+ "crypto-common 0.1.7",
  "inout",
  "zeroize",
 ]
@@ -505,7 +505,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9ed9a281f7bc9b7576e61468ba615a66a5c8cfdff42420a70aa82701a3b1e292"
 dependencies = [
  "block-buffer 0.10.4",
- "crypto-common 0.1.6",
+ "crypto-common 0.1.7",
  "subtle",
 ]
 
@@ -538,7 +538,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -808,7 +808,7 @@ dependencies = [
  "futures",
  "git2",
  "hex",
- "nostr",
+ "nostr 0.44.3",
  "nostr-sdk",
  "serde",
  "serde_json",
@@ -1301,13 +1301,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "nostr"
+version = "0.44.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08d8f0fe13526800300a36bf3b7c5f752e62e32ab81c74a8e5caa2865708625a"
+dependencies = [
+ "base64",
+ "bech32",
+ "bip39",
+ "bitcoin_hashes",
+ "cbc",
+ "chacha20",
+ "chacha20poly1305",
+ "getrandom 0.2.17",
+ "hex",
+ "instant",
+ "scrypt",
+ "secp256k1",
+ "serde",
+ "serde_json",
+ "unicode-normalization",
+ "url",
+]
+
+[[package]]
 name = "nostr-database"
 version = "0.43.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b1c75a8c2175d2785ba73cfddef21d1e30da5fbbdf158569b6808ba44973a15b"
 dependencies = [
  "lru",
- "nostr",
+ "nostr 0.43.1",
  "tokio",
 ]
 
@@ -1322,7 +1346,7 @@ dependencies = [
  "atomic-destructor",
  "lru",
  "negentropy",
- "nostr",
+ "nostr 0.43.1",
  "nostr-database",
  "tokio",
  "tracing",
@@ -1335,7 +1359,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "599f8963d6a1522a13b1a2b0ea6e168acfc367706606f1d33fa595e91fa22db0"
 dependencies = [
  "async-utility",
- "nostr",
+ "nostr 0.43.1",
  "nostr-database",
  "nostr-relay-pool",
  "tokio",
@@ -1668,7 +1692,7 @@ checksum = "a4e608c6638b9c18977b00b475ac1f28d14e84b27d8d42f70e0bf1e3dec127ac"
 dependencies = [
  "getrandom 0.2.17",
  "libredox",
- "thiserror 2.0.16",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2414,7 +2438,7 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
 dependencies = [
- "crypto-common 0.1.6",
+ "crypto-common 0.1.7",
  "subtle",
 ]
 
@@ -2779,7 +2803,7 @@ version = "0.52.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "282be5f36a8ce781fad8c8ae18fa3f9beff57ec1b52cb3de0789201425d9a33d"
 dependencies = [
- "windows-targets 0.52.6",
+ "windows-targets",
 ]
 
 [[package]]
@@ -2788,7 +2812,7 @@ version = "0.59.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1e38bc4d79ed67fd075bcc251a1c39b32a1776bbe92e5bef1f0bf1f8c531853b"
 dependencies = [
- "windows-targets 0.52.6",
+ "windows-targets",
 ]
 
 [[package]]
@@ -2806,14 +2830,14 @@ version = "0.52.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b724f72796e036ab90c1021d4780d4d3d648aca59e491e6b98e725b84e99973"
 dependencies = [
- "windows_aarch64_gnullvm 0.52.6",
- "windows_aarch64_msvc 0.52.6",
- "windows_i686_gnu 0.52.6",
+ "windows_aarch64_gnullvm",
+ "windows_aarch64_msvc",
+ "windows_i686_gnu",
  "windows_i686_gnullvm",
- "windows_i686_msvc 0.52.6",
- "windows_x86_64_gnu 0.52.6",
- "windows_x86_64_gnullvm 0.52.6",
- "windows_x86_64_msvc 0.52.6",
+ "windows_i686_msvc",
+ "windows_x86_64_gnu",
+ "windows_x86_64_gnullvm",
+ "windows_x86_64_msvc",
 ]
 
 [[package]]
