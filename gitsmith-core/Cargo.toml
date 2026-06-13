@@ -13,7 +13,7 @@ tokio = { workspace = true }
 strum = { workspace = true }
 
 # Nostr SDK
-nostr = "0.43.1"
+nostr = "0.44.3"
 nostr-sdk = "0.43.0"
 
 # Git operations
