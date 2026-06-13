@@ -19,7 +19,7 @@ tempfile = "3.8"
 assert_cmd = "2.0"
 predicates = "3.0"
 uuid = { version = "1.23", features = ["v4"] }
-colored = "2.1"
+colored = "3.1"
 regex = "1.10"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
