@@ -16,7 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 nostr-sdk = "0.43.0"
-rpassword = "7.3"
+rpassword = "7.5"
 futures = "0.3"
 chrono = "0.4"
 

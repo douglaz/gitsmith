@@ -18,7 +18,7 @@ clap = { version = "4.5.41", features = ["derive", "env"] }
 tempfile = "3.8"
 assert_cmd = "2.0"
 predicates = "3.0"
-uuid = { version = "1.6", features = ["v4"] }
+uuid = { version = "1.23", features = ["v4"] }
 colored = "2.1"
 regex = "1.10"
 tracing = "0.1"
