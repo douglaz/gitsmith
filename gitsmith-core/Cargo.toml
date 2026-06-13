@@ -18,7 +18,7 @@ nostr-sdk = "0.43.0"
 
 # Git operations
 # Use vendored-openssl to avoid system OpenSSL dependency
-git2 = { version = "0.20.2", features = ["vendored-openssl"] }
+git2 = { version = "0.21.0", features = ["vendored-openssl"] }
 
 # Crypto
 sha2 = "0.11.0"
